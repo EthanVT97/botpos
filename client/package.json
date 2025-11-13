@@ -3,13 +3,24 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.0",
-    "axios": "^1.6.2",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.5",
+    "@mui/material": "^7.3.5",
+    "@mui/styled-engine-sc": "^7.3.5",
+    "@mui/x-data-grid": "^8.18.0",
     "@supabase/supabase-js": "^2.39.0",
+    "axios": "^1.6.2",
+    "lucide-react": "^0.294.0",
+    "react": "^17.0.0 || ^18.0.0 || ^19.0.0",
+    "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0",
+    "react-router-dom": "^6.20.0",
     "recharts": "^2.10.3",
-    "lucide-react": "^0.294.0"
+    "styled-components": "^6.1.19"
+  },
+  "peerDependencies": {
+    "react": "^17.0.0 || ^18.0.0 || ^19.0.0",
+    "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -21,8 +32,16 @@
     "react-scripts": "5.0.1"
   },
   "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
-    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   },
   "proxy": "http://localhost:3001"
 }
