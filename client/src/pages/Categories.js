@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../api/api';
+import { DataGrid, GridToolbar } from '@mui/x-data-grid';
+import Stack from '@mui/material/Stack';
+import IconButton from '@mui/material/IconButton';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
@@ -11,7 +16,29 @@ const Categories = () => {
   useEffect(() => {
     loadCategories();
   }, []);
-
+  const columns = [
+    { field: 'name', headerName: 'Category Name', width: 200 },
+    { field: 'name_mm', headerName: 'Category Myanmar Name', width: 300 },
+    { field: 'description', headerName: 'Description', width: 400 },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 150,
+      sortable: false,
+      renderCell: (params) => {
+        return (
+          <Stack direction="row" spacing={1}>
+            <IconButton onClick={() => handleEdit(params.row)} aria-label="edit" >
+              <EditIcon />
+            </IconButton>
+            <IconButton onClick={() => handleDelete(params.id)} aria-label="delete">
+              <DeleteIcon />
+            </IconButton>
+          </Stack>
+        );
+      },
+    },
+  ];
   const loadCategories = async () => {
     try {
       const res = await getCategories();
@@ -69,36 +96,13 @@ const Categories = () => {
             Add Category
           </button>
         </div>
-
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Myanmar Name</th>
-              <th>Description</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map((category) => (
-              <tr key={category.id}>
-                <td>{category.name}</td>
-                <td>{category.name_mm}</td>
-                <td>{category.description}</td>
-                <td>
-                  <button className="btn btn-secondary" style={{ marginRight: '8px', padding: '6px 12px' }} onClick={() => handleEdit(category)}>
-                    <Edit size={16} />
-                  </button>
-                  <button className="btn btn-danger" style={{ padding: '6px 12px' }} onClick={() => handleDelete(category.id)}>
-                    <Trash2 size={16} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataGrid
+          rows={categories}
+          columns={columns}
+          slots={{ toolbar: GridToolbar }}
+          pagination
+        />
       </div>
-
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -108,18 +112,18 @@ const Categories = () => {
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label className="form-label">Name</label>
-                <input className="input" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
+                <input className="input" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
               </div>
               <div className="form-group">
                 <label className="form-label">Myanmar Name</label>
-                <input className="input" value={formData.name_mm} onChange={(e) => setFormData({...formData, name_mm: e.target.value})} />
+                <input className="input" value={formData.name_mm} onChange={(e) => setFormData({ ...formData, name_mm: e.target.value })} />
               </div>
               <div className="form-group">
                 <label className="form-label">Description</label>
-                <textarea className="input" rows="3" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+                <textarea className="input" rows="3" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(false); setFormData({ name: '', name_mm: '', description: '' }); }}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Save</button>
               </div>
             </form>
