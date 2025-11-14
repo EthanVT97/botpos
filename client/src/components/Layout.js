@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingCart, Package, Users, 
@@ -7,8 +7,27 @@ import {
 import './Layout.css';
 
 const Layout = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
   const location = useLocation();
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 768) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleNavClick = () => {
+    if (window.innerWidth <= 768) {
+      setSidebarOpen(false);
+    }
+  };
 
   const menuItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', labelMm: 'ပင်မစာမျက်နှာ' },
@@ -40,20 +59,25 @@ const Layout = ({ children }) => {
                 key={item.path}
                 to={item.path}
                 className={`nav-item ${isActive ? 'active' : ''}`}
+                onClick={handleNavClick}
               >
                 <Icon size={20} />
-                {sidebarOpen && (
-                  <div className="nav-label">
-                    <span>{item.label}</span>
-                    <span className="nav-label-mm">{item.labelMm}</span>
-                  </div>
-                )}
+                <div className="nav-label">
+                  <span>{item.label}</span>
+                  <span className="nav-label-mm">{item.labelMm}</span>
+                </div>
               </Link>
             );
           })}
         </nav>
       </aside>
       <main className={`main-content ${sidebarOpen ? '' : 'expanded'}`}>
+        <button 
+          className="mobile-menu-btn"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+        >
+          <Menu size={24} />
+        </button>
         {children}
       </main>
     </div>
