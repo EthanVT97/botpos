@@ -7,6 +7,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import Stack from '@mui/material/Stack';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import IconButton from '@mui/material/IconButton';
+import Select from 'react-select'
 
 const columns = [
   { field: 'id', headerName: 'ID', width: 90 },
@@ -40,6 +41,16 @@ const rows = [
   { id: 2, productname: "Tea Mix", productmyanname: 'Snow', category: 'Category One', price: 35000, stock: 10 },
 ];
 
+const options = [
+  { value: 'Category one', label: 'Category One' },
+  { value: 'Category two', label: 'Category two' },
+  { value: 'Category three', label: 'Category three' }
+]
+const optionsUOM = [
+  { value: 'Pcs', label: 'Pcs' },
+  { value: 'Card', label: 'Card' },
+  { value: 'Bag', label: 'Bag' }
+]
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -50,6 +61,8 @@ const Products = () => {
     name: '', name_mm: '', description: '', price: '', cost: '',
     category_id: '', sku: '', barcode: '', stock_quantity: '', image_url: ''
   });
+  const [isClearable, setIsClearable] = useState(true);
+  const [isSearchable, setIsSearchable] = useState(true);
   useEffect(() => {
     loadProducts();
     loadCategories();
@@ -190,21 +203,43 @@ const Products = () => {
               <h2 className="modal-title">{editingProduct ? 'Edit Product' : 'Add Product'}</h2>
             </div>
             <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label className="form-label">Name</label>
-                <input className="input" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Name</label>
+                  <input className="input" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Myanmar Name</label>
+                  <input className="input" value={formData.name_mm} onChange={(e) => setFormData({ ...formData, name_mm: e.target.value })} />
+                </div>
               </div>
-              <div className="form-group">
-                <label className="form-label">Myanmar Name</label>
-                <input className="input" value={formData.name_mm} onChange={(e) => setFormData({ ...formData, name_mm: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Category</label>
-                <select className="input" value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Category</label>
+                  {/* <select className="input" value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}>
                   <option value="">Select Category</option>
                   {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                </select>
+                </select> */}
+                  <Select
+                    options={options}
+                    isClearable={isClearable}
+                    isSearchable={isSearchable}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Base UOM</label>
+                  {/* <select className="input" value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}>
+                  <option value="">Select Category</option>
+                  {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                </select> */}
+                  <Select
+                    options={optionsUOM}
+                    isClearable={isClearable}
+                    isSearchable={isSearchable}
+                  />
+                </div>
               </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
                   <label className="form-label">Price</label>
