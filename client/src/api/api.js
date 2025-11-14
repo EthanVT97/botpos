@@ -59,4 +59,12 @@ export const testBotToken = (platform, token) => api.post(`/bots/test/${platform
 export const getWebhookStatus = () => api.get('/bots/webhook/status');
 export const deleteWebhook = (platform) => api.delete(`/bots/${platform}/webhook`);
 
+// Chat
+export const getChatSessions = () => api.get('/chat/sessions');
+export const getChatMessages = (customerId) => api.get(`/chat/messages/${customerId}`);
+export const sendChatMessage = (data) => api.post('/chat/send', data);
+export const markMessagesRead = (customerId) => api.post(`/chat/mark-read/${customerId}`);
+export const getUnreadCount = () => api.get('/chat/unread-count');
+export const closeChatSession = (customerId) => api.post(`/chat/sessions/${customerId}/close`);
+
 export default api;

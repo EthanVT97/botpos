@@ -10,6 +10,8 @@ import POS from './pages/POS';
 import Inventory from './pages/Inventory';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import BotFlows from './pages/BotFlows';
+import FlowBuilder from './pages/FlowBuilder';
 import './App.css';
 
 function App() {
@@ -26,6 +28,8 @@ function App() {
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/bot-flows" element={<BotFlows />} />
+          <Route path="/bot-flows/:id" element={<FlowBuilder />} />
         </Routes>
       </Layout>
     </Router>

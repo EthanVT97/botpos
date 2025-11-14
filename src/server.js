@@ -22,6 +22,8 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/bots', require('./routes/bots'));
+app.use('/api/chat', require('./routes/chat'));
+app.use('/api/bot-flows', require('./routes/botFlows'));
 
 // Bot Webhooks
 app.use('/webhooks/viber', require('./routes/webhooks/viber'));

@@ -16,8 +16,10 @@
     "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0",
     "react-router-dom": "^6.20.0",
     "react-select": "^5.10.2",
+    "reactflow": "^11.11.4",
     "recharts": "^2.10.3",
-    "styled-components": "^6.1.19"
+    "styled-components": "^6.1.19",
+    "xlsx": "^0.18.5"
   },
   "peerDependencies": {
     "react": "^17.0.0 || ^18.0.0 || ^19.0.0",

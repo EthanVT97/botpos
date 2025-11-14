@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { viberBot, ViberMessage } = require('../../config/bots');
 const { supabase } = require('../../config/supabase');
+const flowExecutor = require('../../utils/flowExecutor');
 
 // Viber webhook
 router.post('/', (req, res) => {
@@ -33,17 +34,62 @@ viberBot.on('message', async (message) => {
       customer = newCustomer;
     }
 
-    // Handle commands
-    if (text.startsWith('/')) {
-      await handleViberCommand(message, customer);
-    } else {
+    // Save incoming message to database
+    await supabase
+      .from('chat_messages')
+      .insert([{
+        customer_id: customer.id,
+        sender_type: 'customer',
+        message: text,
+        channel: 'viber',
+        is_read: false
+      }]);
+
+    // Try to process with flow executor first
+    const flowResponse = await flowExecutor.processMessage(customer.id, text, 'viber');
+    
+    if (flowResponse && flowResponse.message) {
+      // Send flow response
       await viberBot.sendMessage(message.userProfile, [
-        new ViberMessage.Text('မင်္ဂလာပါ! ကျွန်ုပ်တို့၏ POS စနစ်မှ ကြိုဆိုပါတယ်။\n\n' +
+        new ViberMessage.Text(flowResponse.message)
+      ]);
+      
+      // Save bot response
+      await supabase
+        .from('chat_messages')
+        .insert([{
+          customer_id: customer.id,
+          sender_type: 'admin',
+          message: flowResponse.message,
+          channel: 'viber',
+          is_read: true
+        }]);
+    } else {
+      // Fallback to default handling
+      if (text.startsWith('/')) {
+        await handleViberCommand(message, customer);
+      } else {
+        const response = 'မင်္ဂလာပါ! ကျွန်ုပ်တို့၏ POS စနစ်မှ ကြိုဆိုပါတယ်။\n\n' +
           'Commands:\n' +
           '/products - ကုန်ပစ္စည်းများကြည့်ရန်\n' +
           '/orders - မှာယူမှုများကြည့်ရန်\n' +
-          '/help - အကူအညီ')
-      ]);
+          '/help - အကူအညီ';
+        
+        await viberBot.sendMessage(message.userProfile, [
+          new ViberMessage.Text(response)
+        ]);
+        
+        // Save bot response
+        await supabase
+          .from('chat_messages')
+          .insert([{
+            customer_id: customer.id,
+            sender_type: 'admin',
+            message: response,
+            channel: 'viber',
+            is_read: true
+          }]);
+      }
     }
   } catch (error) {
     console.error('Viber error:', error);

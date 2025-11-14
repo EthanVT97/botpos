@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { telegramBot } = require('../../config/bots');
 const { supabase } = require('../../config/supabase');
+const flowExecutor = require('../../utils/flowExecutor');
 
 // Telegram webhook
 router.post('/', async (req, res) => {
@@ -30,17 +31,59 @@ router.post('/', async (req, res) => {
         customer = newCustomer;
       }
 
-      // Handle commands
-      if (text.startsWith('/')) {
-        await handleTelegramCommand(chatId, text, customer);
+      // Save incoming message to database
+      await supabase
+        .from('chat_messages')
+        .insert([{
+          customer_id: customer.id,
+          sender_type: 'customer',
+          message: text,
+          channel: 'telegram',
+          channel_message_id: message.message_id.toString(),
+          is_read: false
+        }]);
+
+      // Try to process with flow executor first
+      const flowResponse = await flowExecutor.processMessage(customer.id, text, 'telegram');
+      
+      if (flowResponse && flowResponse.message) {
+        // Send flow response
+        await telegramBot.sendMessage(chatId, flowResponse.message);
+        
+        // Save bot response
+        await supabase
+          .from('chat_messages')
+          .insert([{
+            customer_id: customer.id,
+            sender_type: 'admin',
+            message: flowResponse.message,
+            channel: 'telegram',
+            is_read: true
+          }]);
       } else {
-        await telegramBot.sendMessage(chatId, 
-          'မင်္ဂလာပါ! ကျွန်ုပ်တို့၏ POS စနစ်မှ ကြိုဆိုပါတယ်။\n\n' +
-          'Commands:\n' +
-          '/products - ကုန်ပစ္စည်းများကြည့်ရန်\n' +
-          '/orders - မှာယူမှုများကြည့်ရန်\n' +
-          '/help - အကူအညီ'
-        );
+        // Fallback to default handling
+        if (text.startsWith('/')) {
+          await handleTelegramCommand(chatId, text, customer);
+        } else {
+          const response = 'မင်္ဂလာပါ! ကျွန်ုပ်တို့၏ POS စနစ်မှ ကြိုဆိုပါတယ်။\n\n' +
+            'Commands:\n' +
+            '/products - ကုန်ပစ္စည်းများကြည့်ရန်\n' +
+            '/orders - မှာယူမှုများကြည့်ရန်\n' +
+            '/help - အကူအညီ';
+          
+          await telegramBot.sendMessage(chatId, response);
+          
+          // Save bot response
+          await supabase
+            .from('chat_messages')
+            .insert([{
+              customer_id: customer.id,
+              sender_type: 'admin',
+              message: response,
+              channel: 'telegram',
+              is_read: true
+            }]);
+        }
       }
     }
 

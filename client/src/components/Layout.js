@@ -38,6 +38,7 @@ const Layout = ({ children }) => {
     { path: '/orders', icon: ShoppingBag, label: 'Orders', labelMm: 'မှာယူမှုများ' },
     { path: '/inventory', icon: Warehouse, label: 'Inventory', labelMm: 'စာရင်းကိုင်' },
     { path: '/reports', icon: BarChart3, label: 'Reports', labelMm: 'အစီရင်ခံစာများ' },
+    { path: '/bot-flows', icon: Package, label: 'Bot Flows', labelMm: 'ဘော့ဖလိုး' },
     { path: '/settings', icon: Settings, label: 'Settings', labelMm: 'ဆက်တင်များ' },
   ];
 

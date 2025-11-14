@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const { supabase } = require('../../config/supabase');
+const flowExecutor = require('../../utils/flowExecutor');
 
 const PAGE_ACCESS_TOKEN = process.env.MESSENGER_PAGE_ACCESS_TOKEN;
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN;
@@ -61,17 +62,62 @@ async function handleMessage(senderId, text) {
       customer = newCustomer;
     }
 
-    // Handle commands
-    if (text.toLowerCase().includes('product')) {
-      await sendProductList(senderId);
-    } else if (text.toLowerCase().includes('order')) {
-      await sendOrderList(senderId, customer);
+    // Save incoming message to database
+    await supabase
+      .from('chat_messages')
+      .insert([{
+        customer_id: customer.id,
+        sender_type: 'customer',
+        message: text,
+        channel: 'messenger',
+        is_read: false
+      }]);
+
+    // Try to process with flow executor first
+    const flowResponse = await flowExecutor.processMessage(customer.id, text, 'messenger');
+    
+    if (flowResponse && flowResponse.message) {
+      // Send flow response
+      await sendTextMessage(senderId, flowResponse.message);
+      
+      // Save bot response
+      await supabase
+        .from('chat_messages')
+        .insert([{
+          customer_id: customer.id,
+          sender_type: 'admin',
+          message: flowResponse.message,
+          channel: 'messenger',
+          is_read: true
+        }]);
     } else {
-      await sendTextMessage(senderId,
-        'မင်္ဂလာပါ! Myanmar POS Bot မှ ကြိုဆိုပါတယ်။\n\n' +
-        'Type "products" to see products\n' +
-        'Type "orders" to see your orders'
-      );
+      // Fallback to default handling
+      let response;
+      if (text.toLowerCase().includes('product')) {
+        await sendProductList(senderId, customer);
+        return;
+      } else if (text.toLowerCase().includes('order')) {
+        await sendOrderList(senderId, customer);
+        return;
+      } else {
+        response = 'မင်္ဂလာပါ! Myanmar POS Bot မှ ကြိုဆိုပါတယ်။\n\n' +
+          'Type "products" to see products\n' +
+          'Type "orders" to see your orders';
+        await sendTextMessage(senderId, response);
+      }
+
+      // Save bot response
+      if (response) {
+        await supabase
+          .from('chat_messages')
+          .insert([{
+            customer_id: customer.id,
+            sender_type: 'admin',
+            message: response,
+            channel: 'messenger',
+            is_read: true
+          }]);
+      }
     }
   } catch (error) {
     console.error('Handle message error:', error);
@@ -90,7 +136,7 @@ async function sendTextMessage(recipientId, text) {
   );
 }
 
-async function sendProductList(recipientId) {
+async function sendProductList(recipientId, customer) {
   const { data: products } = await supabase
     .from('products')
     .select('*')
@@ -102,6 +148,17 @@ async function sendProductList(recipientId) {
   });
 
   await sendTextMessage(recipientId, productText);
+  
+  // Save bot response
+  await supabase
+    .from('chat_messages')
+    .insert([{
+      customer_id: customer.id,
+      sender_type: 'admin',
+      message: productText,
+      channel: 'messenger',
+      is_read: true
+    }]);
 }
 
 async function sendOrderList(recipientId, customer) {

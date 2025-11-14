@@ -1,0 +1,123 @@
+.custom-node {
+  min-width: 200px;
+  border-radius: 8px;
+  background: white;
+  border: 2px solid #ddd;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.node-header {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: white;
+}
+
+.node-icon {
+  font-size: 16px;
+}
+
+.node-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-body {
+  padding: 12px;
+  background: white;
+}
+
+.node-text {
+  margin: 0;
+  font-size: 12px;
+  color: #333;
+  line-height: 1.4;
+  max-height: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.node-description {
+  margin: 0;
+  font-size: 11px;
+  color: #666;
+  font-style: italic;
+}
+
+.node-action {
+  margin: 0;
+  font-size: 12px;
+  color: #333;
+  font-weight: 500;
+}
+
+.node-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.node-button {
+  background: #f0f0f0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.node-variable {
+  margin-top: 8px;
+}
+
+.variable-badge {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  font-family: monospace;
+}
+
+/* Node Type Colors */
+.start-header {
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+}
+
+.message-header {
+  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+}
+
+.question-header {
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+}
+
+.action-header {
+  background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+}
+
+.condition-header {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+}
+
+/* Hover Effects */
+.custom-node:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.react-flow__node.selected .custom-node {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
