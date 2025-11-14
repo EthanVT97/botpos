@@ -36,7 +36,7 @@ router.get('/:id', async (req, res) => {
 // Create product
 router.post('/', async (req, res) => {
   try {
-    const { name, name_mm, description, price, cost, category_id, sku, barcode, stock_quantity, image_url } = req.body;
+    const { name, name_mm, description, price, cost, category_id, sku, barcode, stock_quantity, image_url, base_uom_id } = req.body;
     
     const { data, error } = await supabase
       .from('products')
@@ -50,7 +50,8 @@ router.post('/', async (req, res) => {
         sku,
         barcode,
         stock_quantity,
-        image_url
+        image_url,
+        base_uom_id: base_uom_id || null
       }])
       .select()
       .single();
@@ -58,6 +59,7 @@ router.post('/', async (req, res) => {
     if (error) throw error;
     res.json({ success: true, data });
   } catch (error) {
+    console.error('Error creating product:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -65,9 +67,17 @@ router.post('/', async (req, res) => {
 // Update product
 router.put('/:id', async (req, res) => {
   try {
+    // Allow updating all fields including base_uom_id
+    const updateData = { ...req.body };
+    
+    // Ensure base_uom_id is handled properly (can be null)
+    if (updateData.base_uom_id === '') {
+      updateData.base_uom_id = null;
+    }
+    
     const { data, error } = await supabase
       .from('products')
-      .update(req.body)
+      .update(updateData)
       .eq('id', req.params.id)
       .select()
       .single();
@@ -75,6 +85,7 @@ router.put('/:id', async (req, res) => {
     if (error) throw error;
     res.json({ success: true, data });
   } catch (error) {
+    console.error('Error updating product:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

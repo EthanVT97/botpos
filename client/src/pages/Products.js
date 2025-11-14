@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getProducts, getCategories, createProduct, updateProduct, deleteProduct } from '../api/api';
+import { getProducts, getCategories, createProduct, updateProduct, deleteProduct, getUOMs, getProductUOMs, addProductUOM, updateProductUOM, deleteProductUOM } from '../api/api';
 import Button from '@mui/material/Button';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -7,65 +7,35 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import Stack from '@mui/material/Stack';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import IconButton from '@mui/material/IconButton';
-import Select from 'react-select'
+import Select from 'react-select';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import Box from '@mui/material/Box';
 
-const columns = [
-  { field: 'id', headerName: 'ID', width: 90 },
-  { field: 'productname', headerName: 'Product Name', width: 150 },
-  { field: 'productmyanname', headerName: 'Product Myanmar Name', width: 200 },
-  { field: 'category', headerName: 'Category', width: 150 },
-  { field: 'price', headerName: 'Price', type: 'number', width: 150 },
-  { field: 'stock', headerName: 'Stock Quantity', type: 'number', width: 120 },
-  {
-    field: 'actions',
-    headerName: 'Actions',
-    width: 150,
-    sortable: false,
-    renderCell: (params) => {
-      return (
-        <Stack direction="row" spacing={1}>
-          <IconButton aria-label="edit">
-            <EditIcon />
-          </IconButton>
-          <IconButton aria-label="delete">
-            <DeleteIcon />
-          </IconButton>
-        </Stack>
-      );
-    },
-  },
-];
-
-const rows = [
-  { id: 1, productname: "Coffee", productmyanname: 'Snow', category: 'Category One', price: 35000, stock: 10 },
-  { id: 2, productname: "Tea Mix", productmyanname: 'Snow', category: 'Category One', price: 35000, stock: 10 },
-];
-
-const options = [
-  { value: 'Category one', label: 'Category One' },
-  { value: 'Category two', label: 'Category two' },
-  { value: 'Category three', label: 'Category three' }
-]
-const optionsUOM = [
-  { value: 'Pcs', label: 'Pcs' },
-  { value: 'Card', label: 'Card' },
-  { value: 'Bag', label: 'Bag' }
-]
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [uoms, setUOMs] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showUOMModal, setShowUOMModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [productUOMs, setProductUOMs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [tabValue, setTabValue] = useState(0);
   const [formData, setFormData] = useState({
     name: '', name_mm: '', description: '', price: '', cost: '',
-    category_id: '', sku: '', barcode: '', stock_quantity: '', image_url: ''
+    category_id: '', sku: '', barcode: '', stock_quantity: '', image_url: '', base_uom_id: ''
+  });
+  const [uomFormData, setUOMFormData] = useState({
+    uom_id: '', is_base_uom: false, conversion_factor: 1, price: '', cost: '', barcode: ''
   });
   const [isClearable, setIsClearable] = useState(true);
   const [isSearchable, setIsSearchable] = useState(true);
   useEffect(() => {
     loadProducts();
     loadCategories();
+    loadUOMs();
   }, []);
 
   const loadProducts = async () => {
@@ -83,6 +53,83 @@ const Products = () => {
       setCategories(res.data.data);
     } catch (error) {
       console.error('Error loading categories:', error);
+    }
+  };
+
+  const loadUOMs = async () => {
+    try {
+      const res = await getUOMs();
+      setUOMs(res.data.data || []);
+    } catch (error) {
+      console.error('Error loading UOMs:', error);
+    }
+  };
+
+  const loadProductUOMs = async (productId) => {
+    try {
+      const res = await getProductUOMs(productId);
+      setProductUOMs(res.data.data || []);
+    } catch (error) {
+      console.error('Error loading product UOMs:', error);
+    }
+  };
+
+  const handleManageUOMs = (product) => {
+    setSelectedProduct(product);
+    loadProductUOMs(product.id);
+    setShowUOMModal(true);
+  };
+
+  const handleAddProductUOM = async (e) => {
+    e.preventDefault();
+    
+    // Validate
+    if (!uomFormData.uom_id) {
+      alert('Please select a UOM');
+      return;
+    }
+    
+    if (!uomFormData.conversion_factor || uomFormData.conversion_factor <= 0) {
+      alert('Please enter a valid conversion factor');
+      return;
+    }
+    
+    try {
+      console.log('Adding product UOM:', {
+        ...uomFormData,
+        product_id: selectedProduct.id
+      });
+      
+      const response = await addProductUOM({
+        ...uomFormData,
+        product_id: selectedProduct.id
+      });
+      
+      console.log('UOM added successfully:', response);
+      
+      // Reload UOMs
+      await loadProductUOMs(selectedProduct.id);
+      
+      // Reset form
+      setUOMFormData({ uom_id: '', is_base_uom: false, conversion_factor: 1, price: '', cost: '', barcode: '' });
+      
+      // Show success message
+      alert('UOM added successfully! ✅');
+    } catch (error) {
+      console.error('Error adding product UOM:', error);
+      console.error('Error details:', error.response?.data);
+      alert('Error: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const handleDeleteProductUOM = async (id) => {
+    if (window.confirm('Remove this UOM from product?')) {
+      try {
+        await deleteProductUOM(id);
+        loadProductUOMs(selectedProduct.id);
+      } catch (error) {
+        console.error('Error deleting product UOM:', error);
+      }
     }
   };
 
@@ -129,6 +176,39 @@ const Products = () => {
     (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const columns = [
+    { field: 'id', headerName: 'ID', width: 90 },
+    { field: 'name', headerName: 'Product Name', width: 150 },
+    { field: 'name_mm', headerName: 'Product Myanmar Name', width: 200 },
+    { 
+      field: 'category', 
+      headerName: 'Category', 
+      width: 150,
+      valueGetter: (value, row) => row.categories?.name || ''
+    },
+    { field: 'price', headerName: 'Price', type: 'number', width: 120 },
+    { field: 'stock_quantity', headerName: 'Stock', type: 'number', width: 100 },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 200,
+      sortable: false,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1}>
+          <IconButton onClick={() => handleEdit(params.row)} size="small">
+            <EditIcon />
+          </IconButton>
+          <IconButton onClick={() => handleManageUOMs(params.row)} size="small" color="primary" title="Manage UOMs">
+            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>UOM</span>
+          </IconButton>
+          <IconButton onClick={() => handleDelete(params.row.id)} size="small" color="error">
+            <DeleteIcon />
+          </IconButton>
+        </Stack>
+      ),
+    },
+  ];
+
   return (
     <div className="page">
       <div className="page-header">
@@ -154,10 +234,14 @@ const Products = () => {
           </Button>
         </div>
         <DataGrid
-          rows={rows}
+          rows={filteredProducts}
           columns={columns}
           slots={{ toolbar: GridToolbar }}
-          pagination
+          initialState={{
+            pagination: { paginationModel: { pageSize: 10 } },
+          }}
+          pageSizeOptions={[10, 25, 50]}
+          autoHeight
         />
         {/* <table className="table">
           <thead>
@@ -216,24 +300,20 @@ const Products = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
                   <label className="form-label">Category</label>
-                  {/* <select className="input" value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}>
-                  <option value="">Select Category</option>
-                  {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                </select> */}
                   <Select
-                    options={options}
+                    options={categories.map(c => ({ value: c.id, label: c.name }))}
+                    value={categories.find(c => c.id === formData.category_id) ? { value: formData.category_id, label: categories.find(c => c.id === formData.category_id).name } : null}
+                    onChange={(option) => setFormData({ ...formData, category_id: option?.value || '' })}
                     isClearable={isClearable}
                     isSearchable={isSearchable}
                   />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Base UOM</label>
-                  {/* <select className="input" value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}>
-                  <option value="">Select Category</option>
-                  {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                </select> */}
                   <Select
-                    options={optionsUOM}
+                    options={uoms.map(u => ({ value: u.id, label: `${u.name} (${u.code})` }))}
+                    value={uoms.find(u => u.id === formData.base_uom_id) ? { value: formData.base_uom_id, label: uoms.find(u => u.id === formData.base_uom_id).name } : null}
+                    onChange={(option) => setFormData({ ...formData, base_uom_id: option?.value || '' })}
                     isClearable={isClearable}
                     isSearchable={isSearchable}
                   />
@@ -265,6 +345,138 @@ const Products = () => {
                 <button type="submit" className="btn btn-primary">Save</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* UOM Management Modal */}
+      {showUOMModal && selectedProduct && (
+        <div className="modal-overlay" onClick={() => setShowUOMModal(false)}>
+          <div className="modal" style={{ maxWidth: '800px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Manage UOMs - {selectedProduct.name}</h2>
+            </div>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <h3 style={{ marginBottom: '10px' }}>Add New UOM</h3>
+              <form onSubmit={handleAddProductUOM}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '10px', alignItems: 'end' }}>
+                  <div className="form-group">
+                    <label className="form-label">UOM *</label>
+                    <Select
+                      options={uoms.map(u => ({ value: u.id, label: `${u.name} (${u.code})` }))}
+                      value={uoms.find(u => u.id === uomFormData.uom_id) ? { value: uomFormData.uom_id, label: uoms.find(u => u.id === uomFormData.uom_id).name } : null}
+                      onChange={(option) => setUOMFormData({ ...uomFormData, uom_id: option?.value || '' })}
+                      placeholder="Select UOM"
+                      isClearable
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Factor *</label>
+                    <input 
+                      type="number" 
+                      step="0.0001"
+                      className="input" 
+                      value={uomFormData.conversion_factor} 
+                      onChange={(e) => setUOMFormData({ ...uomFormData, conversion_factor: e.target.value })} 
+                      placeholder="1"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Price</label>
+                    <input 
+                      type="number" 
+                      className="input" 
+                      value={uomFormData.price} 
+                      onChange={(e) => setUOMFormData({ ...uomFormData, price: e.target.value })} 
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <Button 
+                      type="submit" 
+                      variant="contained" 
+                      size="small" 
+                      fullWidth
+                      disabled={!uomFormData.uom_id || !uomFormData.conversion_factor}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                </div>
+                <div className="form-group" style={{ marginTop: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={uomFormData.is_base_uom} 
+                      onChange={(e) => setUOMFormData({ ...uomFormData, is_base_uom: e.target.checked })} 
+                    />
+                    <span>Set as Base UOM (for stock tracking)</span>
+                  </label>
+                </div>
+              </form>
+            </div>
+
+            <div>
+              <h3 style={{ marginBottom: '10px' }}>Current UOMs ({productUOMs.length})</h3>
+              {productUOMs.length > 0 ? (
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>UOM</th>
+                      <th>Base</th>
+                      <th>Factor</th>
+                      <th>Price</th>
+                      <th>Cost</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {productUOMs.map((pu) => (
+                      <tr key={pu.product_uom_id} style={{ background: pu.is_base_uom ? '#f0fdf4' : 'white' }}>
+                        <td>
+                          <strong>{pu.uom_name}</strong> ({pu.uom_code})
+                          {pu.uom_name_mm && <div style={{ fontSize: '12px', color: '#666' }}>{pu.uom_name_mm}</div>}
+                        </td>
+                        <td>
+                          {pu.is_base_uom && <span style={{ color: '#10b981', fontWeight: 'bold' }}>✓ Base</span>}
+                        </td>
+                        <td>{pu.conversion_factor}</td>
+                        <td>{pu.price ? `${pu.price} Ks` : '-'}</td>
+                        <td>{pu.cost ? `${pu.cost} Ks` : '-'}</td>
+                        <td>
+                          <IconButton onClick={() => handleDeleteProductUOM(pu.product_uom_id)} size="small" color="error">
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div style={{ 
+                  padding: '40px', 
+                  textAlign: 'center', 
+                  background: '#f9fafb', 
+                  borderRadius: '8px',
+                  border: '2px dashed #e5e7eb'
+                }}>
+                  <p style={{ color: '#6b7280', margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600' }}>
+                    No UOMs configured yet
+                  </p>
+                  <p style={{ color: '#9ca3af', margin: 0, fontSize: '14px' }}>
+                    Add units above to enable multi-UOM selling
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button type="button" className="btn btn-primary" onClick={() => setShowUOMModal(false)}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

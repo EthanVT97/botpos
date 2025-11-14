@@ -67,4 +67,18 @@ export const markMessagesRead = (customerId) => api.post(`/chat/mark-read/${cust
 export const getUnreadCount = () => api.get('/chat/unread-count');
 export const closeChatSession = (customerId) => api.post(`/chat/sessions/${customerId}/close`);
 
+// UOM (Unit of Measure)
+export const getUOMs = () => api.get('/uom');
+export const getUOM = (id) => api.get(`/uom/${id}`);
+export const createUOM = (data) => api.post('/uom', data);
+export const updateUOM = (id, data) => api.put(`/uom/${id}`, data);
+export const deleteUOM = (id) => api.delete(`/uom/${id}`);
+export const getProductUOMs = (productId) => api.get(`/uom/product/${productId}`);
+export const addProductUOM = (data) => api.post('/uom/product', data);
+export const updateProductUOM = (id, data) => api.put(`/uom/product/${id}`, data);
+export const deleteProductUOM = (id) => api.delete(`/uom/product/${id}`);
+export const getUOMConversions = () => api.get('/uom/conversions');
+export const addUOMConversion = (data) => api.post('/uom/conversions', data);
+export const convertUOMQuantity = (data) => api.post('/uom/convert', data);
+
 export default api;

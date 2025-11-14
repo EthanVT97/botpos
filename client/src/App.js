@@ -12,6 +12,7 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import BotFlows from './pages/BotFlows';
 import FlowBuilder from './pages/FlowBuilder';
+import UOM from './pages/UOM';
 import './App.css';
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/bot-flows" element={<BotFlows />} />
           <Route path="/bot-flows/:id" element={<FlowBuilder />} />
+          <Route path="/uom" element={<UOM />} />
         </Routes>
       </Layout>
     </Router>

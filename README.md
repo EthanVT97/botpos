@@ -22,6 +22,7 @@ A comprehensive Point of Sale system with **Multi-Channel Chat Interface** and b
 
 ### 📦 Core POS Features
 - **Product Management** - Full CRUD with Myanmar language, SKU/barcode tracking
+- **Multi-UOM Support** - Multiple units of measure with automatic conversion (NEW!)
 - **Customer Management** - Profiles with multi-channel integration
 - **Point of Sale** - Real-time cart, multiple payment methods (Cash, KPay, Wave Pay, Card)
 - **Order Processing** - Order tracking with automatic stock updates
@@ -102,6 +103,8 @@ MESSENGER_VERIFY_TOKEN=your_verify_token
 4. Click **Run**
 5. Copy and paste the content from `supabase/chat_schema.sql`
 6. Click **Run**
+7. Copy and paste the content from `supabase/uom_schema.sql`
+8. Click **Run**
 
 **Option B: Supabase CLI**
 ```bash
@@ -142,8 +145,11 @@ Run these schemas in Supabase SQL Editor:
 -- 2. Chat schema
 -- Copy content from supabase/chat_schema.sql
 
--- 3. Bot Flow schema (NEW!)
+-- 3. Bot Flow schema
 -- Copy content from supabase/bot_flow_schema.sql
+
+-- 4. UOM schema (NEW!)
+-- Copy content from supabase/uom_schema.sql
 ```
 
 ### Step 2: Configure Bots
@@ -171,6 +177,133 @@ Run these schemas in Supabase SQL Editor:
 - ⚡ Real-time updates (3s polling)
 - 📱 Responsive design
 - 🌐 Myanmar language support
+
+---
+
+## 📏 Multi-UOM (Unit of Measure) Feature
+
+### Overview
+
+The Multi-UOM feature allows products to be sold in different units with automatic conversion. Perfect for businesses selling items in various packaging sizes (pieces, boxes, cartons, etc.).
+
+### Key Features
+
+- **Multiple Units per Product** - Sell same product in different units
+- **Automatic Conversion** - System converts quantities automatically
+- **Base UOM Tracking** - All stock tracked in one base unit
+- **Flexible Pricing** - Different prices for different units
+- **Pre-configured UOMs** - 12 common units ready to use
+
+### Pre-configured Units
+
+| Code | Name | Myanmar | Example Use |
+|------|------|---------|-------------|
+| PCS | Pieces | ခု | Individual items |
+| BOX | Box | ဘူး | Box packaging |
+| CTN | Carton | ကတ်တန် | Carton packaging |
+| PKT | Packet | ထုပ် | Packet packaging |
+| BAG | Bag | အိတ် | Bag packaging |
+| KG | Kilogram | ကီလိုဂရမ် | Weight |
+| G | Gram | ဂရမ် | Weight |
+| L | Liter | လီတာ | Volume |
+| ML | Milliliter | မီလီလီတာ | Volume |
+| DOZ | Dozen | ဒါဇင် | 12 pieces |
+| SET | Set | အစုံ | Set of items |
+| ROLL | Roll | လိပ် | Roll packaging |
+
+### Quick Setup
+
+1. **Run UOM Schema** (in Supabase SQL Editor):
+   ```sql
+   -- Copy and run: supabase/uom_schema.sql
+   ```
+
+2. **Verify Schema Installation**:
+   - In Supabase, check if these tables exist:
+     - `uom` (should have 12 pre-configured units)
+     - `product_uom`
+     - `uom_conversion`
+
+3. **Access UOM Management**:
+   - Open http://localhost:3000
+   - Click **"UOM"** in sidebar
+   - View pre-configured units (PCS, BOX, CTN, etc.)
+
+4. **Configure Product UOMs**:
+   - Go to **Products** page
+   - Click **"UOM"** button on any product
+   - Add units with conversion factors
+   - Set one as base UOM
+   - Set prices for each unit
+   - Click "Add" to save
+
+5. **Test in POS**:
+   - Go to **POS** page
+   - Products with configured UOMs show green "UOM" badge (top-right corner)
+   - Click product to see UOM selection modal
+   - Select desired unit (Pieces, Box, Carton, etc.)
+   - Product added to cart with selected unit and price
+
+### Example: Beverage Product
+
+**Product:** Coca-Cola
+
+**Configuration:**
+- **Pieces (Base)** - Factor: 1, Price: 500 Ks
+- **6-Pack** - Factor: 6, Price: 2,800 Ks (save 200 Ks)
+- **Carton** - Factor: 24, Price: 10,000 Ks (save 2,000 Ks)
+
+**How it works:**
+- Stock tracked in Pieces
+- Sell 1 Carton → Deducts 24 Pieces from stock
+- Sell 1 6-Pack → Deducts 6 Pieces from stock
+
+### Testing UOM in POS
+
+**Step-by-Step Test:**
+
+1. **Run UOM Schema** (if not done):
+   - Open Supabase SQL Editor
+   - Copy content from `supabase/uom_schema.sql`
+   - Click "Run"
+   - Verify: Check if `uom` table has 12 rows
+
+2. **Configure a Test Product**:
+   - Go to http://localhost:3000/products
+   - Click "UOM" button on any product
+   - Add first UOM:
+     - Select "Pieces (PCS)"
+     - Factor: 1
+     - Price: 500
+     - Check "Set as Base UOM"
+     - Click "Add"
+   - Add second UOM:
+     - Select "Box (BOX)"
+     - Factor: 12
+     - Price: 5500
+     - Click "Add"
+
+3. **Test in POS**:
+   - Go to http://localhost:3000/pos
+   - Product should show green "UOM" badge
+   - Click the product
+   - **UOM Modal appears!** 🎉
+   - Select "Pieces" or "Box"
+   - Product added to cart with selected unit
+
+4. **Check Browser Console** (F12):
+   - Should see: `Product: [name], UOMs found: 2`
+   - Should see: `Showing UOM modal with options: [...]`
+
+### API Endpoints
+
+```
+GET    /api/uom                    - Get all UOMs
+POST   /api/uom                    - Create UOM
+GET    /api/uom/product/:productId - Get product UOMs
+POST   /api/uom/product            - Add UOM to product
+POST   /api/uom/convert            - Convert quantity
+```
 
 ---
 
@@ -321,9 +454,14 @@ myanmar-pos-system/
 - **users** - System users
 - **settings** - Configuration
 
-### Chat Tables (NEW!)
+### Chat Tables
 - **chat_messages** - All messages (customer ↔ admin)
 - **chat_sessions** - Active conversations with unread counts
+
+### UOM Tables (NEW!)
+- **uom** - Unit of measure master data
+- **product_uom** - Product-specific UOM configurations
+- **uom_conversion** - Standard UOM conversion rules
 
 ---
 
@@ -340,12 +478,19 @@ myanmar-pos-system/
 - `POST /api/orders` - Create order
 - `PATCH /api/orders/:id/status` - Update status
 
-### Chat (NEW!)
+### Chat
 - `GET /api/chat/sessions` - Get active chat sessions
 - `GET /api/chat/messages/:customerId` - Get messages
 - `POST /api/chat/send` - Send message to customer
 - `POST /api/chat/mark-read/:customerId` - Mark as read
 - `GET /api/chat/unread-count` - Get unread count
+
+### UOM (NEW!)
+- `GET /api/uom` - Get all UOMs
+- `POST /api/uom` - Create UOM
+- `GET /api/uom/product/:productId` - Get product UOMs
+- `POST /api/uom/product` - Add UOM to product
+- `POST /api/uom/convert` - Convert quantity between UOMs
 
 ### Bot Webhooks
 - `POST /webhooks/viber` - Viber webhook
@@ -686,6 +831,8 @@ Before deploying to production:
 ### Database
 - [ ] Run `supabase/schema.sql`
 - [ ] Run `supabase/chat_schema.sql`
+- [ ] Run `supabase/bot_flow_schema.sql`
+- [ ] Run `supabase/uom_schema.sql`
 - [ ] Enable Row Level Security (RLS)
 - [ ] Set up automated backups
 - [ ] Create database indexes
@@ -762,6 +909,12 @@ pm2 stop myanmar-pos
 
 ## 📈 Roadmap
 
+### Completed Features
+- [x] Multi-UOM support with conversion tables
+- [x] Product-specific UOM configurations
+- [x] Automatic quantity conversion
+- [x] UOM management interface
+
 ### Planned Features
 - [ ] User authentication & authorization
 - [ ] Role-based access control
@@ -777,6 +930,8 @@ pm2 stop myanmar-pos
 - [ ] Chat analytics dashboard
 - [ ] API call nodes in flows
 - [ ] Flow templates library
+- [ ] UOM-based pricing tiers
+- [ ] Bulk UOM assignment
 
 ---
 
@@ -846,6 +1001,7 @@ Built with modern web technologies for Myanmar businesses.
 
 ### ✅ Completed Features
 - Full POS system (Products, Orders, Customers, Inventory)
+- Multi-UOM support with automatic conversion
 - Multi-channel chat (Telegram, Viber, Messenger)
 - Bot Flow Builder with visual designer
 - Flow execution engine with variables
@@ -859,11 +1015,12 @@ Built with modern web technologies for Myanmar businesses.
 - Docker Deployment ✅
 
 ### 📈 Statistics
-- 45+ files created
-- 12 API routes
-- 9 frontend pages
-- 12 database tables
+- 50+ files created
+- 13 API routes
+- 10 frontend pages
+- 15 database tables
 - Full bilingual support
+- Multi-UOM with conversion engine
 
 ---
 
@@ -906,8 +1063,8 @@ Before deploying to production:
 
 ---
 
-**Version:** 1.2.0  
-**Last Updated:** November 14, 2024  
-**Status:** ✅ Production Ready with Bot Flow Builder
+**Version:** 1.3.0  
+**Last Updated:** November 15, 2024  
+**Status:** ✅ Production Ready with Multi-UOM Support
 
 **Happy Selling! 🎉**
