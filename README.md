@@ -726,6 +726,54 @@ MIT License - see LICENSE file for details
 
 ---
 
+## 🌐 Deploy to Render (Free Hosting)
+
+### Quick Deployment (15 minutes)
+
+1. **Push to GitHub**
+```bash
+git add .
+git commit -m "Deploy to Render"
+git push origin main
+```
+
+2. **Deploy Backend**
+   - Go to https://render.com → New + → Web Service
+   - Connect GitHub repo
+   - Name: `myanmar-pos-backend`
+   - Build: `npm install`
+   - Start: `npm start`
+   - Add environment variables (see .env.example)
+   - Deploy!
+
+3. **Deploy Frontend**
+   - New + → Static Site
+   - Build: `cd client && npm install && npm run build`
+   - Publish: `client/build`
+   - Add: `REACT_APP_API_URL=https://your-backend.onrender.com/api`
+   - Deploy!
+
+4. **Update Backend**
+   - Set `CLIENT_URL=https://your-frontend.onrender.com`
+
+5. **Setup Database**
+   - Run all SQL files in Supabase SQL Editor
+
+### 404 Page with Auto-Redirect
+- Custom 404 page created ✅
+- Auto-redirects to home after 5 seconds
+- Manual navigation buttons
+- Myanmar language support
+- Quick links to main pages
+
+**Files:**
+- `render.yaml` - Render configuration
+- `client/public/_redirects` - SPA routing
+- `client/src/pages/NotFound.js` - 404 page
+- `deploy.sh` - Deployment helper script
+
+---
+
 ## 🚀 Quick Commands
 
 ```bash

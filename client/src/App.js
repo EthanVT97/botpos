@@ -14,6 +14,7 @@ import BotFlows from './pages/BotFlows';
 import FlowBuilder from './pages/FlowBuilder';
 import UOM from './pages/UOM';
 import SellingPrice from './pages/SellingPrice';
+import NotFound from './pages/NotFound';
 import './App.css';
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
           <Route path="/bot-flows/:id" element={<FlowBuilder />} />
           <Route path="/uom" element={<UOM />} />
           <Route path="/sellingprice" element={<SellingPrice />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
     </Router>

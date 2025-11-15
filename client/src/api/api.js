@@ -85,6 +85,19 @@ export const convertUOMQuantity = (data) => api.post('/uom/convert', data);
 export const bulkUpdatePrices = (data) => api.post('/selling-price/bulk-update', data);
 export const updateSellingPrice = (id, data) => api.put(`/selling-price/update/${id}`, data);
 export const getPriceHistory = (productId) => api.get(`/selling-price/history/${productId}`);
-export const exportPrices = () => api.get('/selling-price/export', { responseType: 'blob' });
+export const exportPrices = (format = 'excel') => api.get('/selling-price/export', { 
+  params: { format },
+  responseType: 'blob' 
+});
+export const importPrices = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/selling-price/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+};
+export const downloadImportTemplate = () => api.get('/selling-price/import-template', { 
+  responseType: 'blob' 
+});
 
 export default api;

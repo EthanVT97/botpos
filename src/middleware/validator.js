@@ -115,11 +115,36 @@ const uomValidation = {
   ]
 };
 
+/**
+ * Selling Price validation rules
+ */
+const sellingPriceValidation = {
+  bulkUpdate: [
+    body('formula').isIn(['plus', 'minus', 'fixed_add', 'fixed_subtract', 'margin']).withMessage('Invalid formula'),
+    body('percentage').optional().isFloat({ min: 0, max: 1000 }).withMessage('Percentage must be between 0 and 1000'),
+    body('fixedAmount').optional().isFloat({ min: 0 }).withMessage('Fixed amount must be positive'),
+    body('productIds').optional().isArray().withMessage('Product IDs must be an array'),
+    validate
+  ],
+  update: [
+    param('id').isUUID().withMessage('Invalid product ID'),
+    body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
+    validate
+  ],
+  importPrices: [
+    body('prices').isArray({ min: 1 }).withMessage('Prices array is required'),
+    body('prices.*.id').isUUID().withMessage('Invalid product ID'),
+    body('prices.*.price').isFloat({ min: 0 }).withMessage('Price must be positive'),
+    validate
+  ]
+};
+
 module.exports = {
   validate,
   productValidation,
   customerValidation,
   orderValidation,
   chatValidation,
-  uomValidation
+  uomValidation,
+  sellingPriceValidation
 };
