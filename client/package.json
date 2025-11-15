@@ -20,6 +20,7 @@
     "react-select": "^5.10.2",
     "reactflow": "^11.11.4",
     "recharts": "^2.10.3",
+    "socket.io-client": "^4.6.1",
     "styled-components": "^6.1.19",
     "xlsx": "^0.18.5"
   },

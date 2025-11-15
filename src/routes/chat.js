@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { telegramBot, viberBot, ViberMessage } = require('../config/bots');
+const { emitNewMessage, emitMessageRead, emitUnreadCountUpdate, emitSessionUpdate } = require('../config/socket');
+const { chatValidation } = require('../middleware/validator');
+const { chatLimiter } = require('../middleware/rateLimiter');
 const axios = require('axios');
 
 // Get all active chat sessions
@@ -15,6 +18,7 @@ router.get('/sessions', async (req, res) => {
           id,
           name,
           phone,
+          email,
           viber_id,
           telegram_id,
           messenger_id
@@ -54,17 +58,10 @@ router.get('/messages/:customerId', async (req, res) => {
   }
 });
 
-// Send message to customer
-router.post('/send', async (req, res) => {
+// Send message to customer (with rate limiting and validation)
+router.post('/send', chatLimiter, chatValidation.send, async (req, res) => {
   try {
     const { customerId, message, channel } = req.body;
-
-    if (!customerId || !message) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Customer ID and message are required' 
-      });
-    }
 
     // Get customer info
     const { data: customer, error: customerError } = await supabase
@@ -145,6 +142,21 @@ router.post('/send', async (req, res) => {
 
     if (saveError) throw saveError;
 
+    // Emit real-time update via Socket.IO
+    emitNewMessage(savedMessage, customerId);
+
+    // Update session
+    await supabase
+      .from('chat_sessions')
+      .upsert({
+        customer_id: customerId,
+        channel: targetChannel,
+        last_message_at: new Date(),
+        is_active: true
+      }, {
+        onConflict: 'customer_id'
+      });
+
     res.json({ 
       success: true, 
       data: savedMessage,
@@ -158,15 +170,55 @@ router.post('/send', async (req, res) => {
 });
 
 // Mark messages as read
-router.post('/mark-read/:customerId', async (req, res) => {
+router.post('/mark-read/:customerId', chatValidation.markRead, async (req, res) => {
   try {
     const { customerId } = req.params;
 
-    const { error } = await supabase.rpc('mark_messages_read', {
-      p_customer_id: customerId
-    });
+    // Get unread message IDs before marking as read
+    const { data: unreadMessages } = await supabase
+      .from('chat_messages')
+      .select('id')
+      .eq('customer_id', customerId)
+      .eq('sender_type', 'customer')
+      .eq('is_read', false);
+
+    const messageIds = unreadMessages?.map(m => m.id) || [];
+
+    // Mark messages as read
+    const { error } = await supabase
+      .from('chat_messages')
+      .update({ is_read: true, read_at: new Date() })
+      .eq('customer_id', customerId)
+      .eq('sender_type', 'customer')
+      .eq('is_read', false);
 
     if (error) throw error;
+
+    // Update session unread count
+    const { data: session } = await supabase
+      .from('chat_sessions')
+      .update({ unread_count: 0 })
+      .eq('customer_id', customerId)
+      .select()
+      .single();
+
+    // Emit real-time updates
+    if (messageIds.length > 0) {
+      emitMessageRead(customerId, messageIds);
+    }
+
+    // Update total unread count
+    const { data: sessions } = await supabase
+      .from('chat_sessions')
+      .select('unread_count')
+      .eq('is_active', true);
+
+    const totalUnread = sessions?.reduce((sum, s) => sum + (s.unread_count || 0), 0) || 0;
+    emitUnreadCountUpdate(totalUnread);
+
+    if (session) {
+      emitSessionUpdate(session);
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -199,12 +251,17 @@ router.post('/sessions/:customerId/close', async (req, res) => {
   try {
     const { customerId } = req.params;
 
-    const { error } = await supabase
+    const { data: session, error } = await supabase
       .from('chat_sessions')
       .update({ is_active: false, updated_at: new Date() })
-      .eq('customer_id', customerId);
+      .eq('customer_id', customerId)
+      .select()
+      .single();
 
     if (error) throw error;
+
+    // Emit session update
+    emitSessionUpdate(session);
 
     res.json({ success: true });
   } catch (error) {

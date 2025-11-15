@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, ShoppingCart, Users, Package, MessageCircle } from 'lucide-react';
 import { getSalesSummary, getTopProducts, getLowStock, getUnreadCount } from '../api/api';
-import Chat from '../components/Chat';
+import Chat from '../components/ChatRealtime';
 import api from '../api/api';
 
 const Dashboard = () => {

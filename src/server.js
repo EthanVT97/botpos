@@ -1,15 +1,42 @@
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const helmet = require('helmet');
+const morgan = require('morgan');
 require('dotenv').config();
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
+// Initialize Socket.IO
+const { initializeSocket } = require('./config/socket');
+const io = initializeSocket(server);
+
+// Security middleware
+app.use(helmet());
+
+// Logging middleware
+app.use(morgan('combined'));
+
+// CORS middleware
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true
+}));
+
+// Body parser middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Rate limiting
+const { apiLimiter, webhookLimiter } = require('./middleware/rateLimiter');
+app.use('/api', apiLimiter);
+app.use('/webhooks', webhookLimiter);
+
+// Make io accessible to routes
+app.set('io', io);
 
 // Routes
 app.use('/api/products', require('./routes/products'));
@@ -25,6 +52,7 @@ app.use('/api/bots', require('./routes/bots'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/bot-flows', require('./routes/botFlows'));
 app.use('/api/uom', require('./routes/uom'));
+app.use('/api/selling-price', require('./routes/sellingPrice'));
 
 // Bot Webhooks
 app.use('/webhooks/viber', require('./routes/webhooks/viber'));
@@ -42,6 +70,7 @@ app.get('/health', async (req, res) => {
       status: 'OK', 
       message: 'Myanmar POS System is running',
       database: error ? 'disconnected' : 'connected',
+      websocket: io ? 'active' : 'inactive',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -58,10 +87,11 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 Bot webhooks ready`);
+  console.log(`🔌 WebSocket server active`);
   console.log(`🌐 Health check: http://localhost:${PORT}/health`);
 });
 
-module.exports = app;
+module.exports = { app, server, io };

@@ -81,4 +81,10 @@ export const getUOMConversions = () => api.get('/uom/conversions');
 export const addUOMConversion = (data) => api.post('/uom/conversions', data);
 export const convertUOMQuantity = (data) => api.post('/uom/convert', data);
 
+// Selling Price
+export const bulkUpdatePrices = (data) => api.post('/selling-price/bulk-update', data);
+export const updateSellingPrice = (id, data) => api.put(`/selling-price/update/${id}`, data);
+export const getPriceHistory = (productId) => api.get(`/selling-price/history/${productId}`);
+export const exportPrices = () => api.get('/selling-price/export', { responseType: 'blob' });
+
 export default api;

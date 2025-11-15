@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const { supabase } = require('../../config/supabase');
+const { emitNewMessage, emitSessionUpdate, emitUnreadCountUpdate } = require('../../config/socket');
 const flowExecutor = require('../../utils/flowExecutor');
 
 const PAGE_ACCESS_TOKEN = process.env.MESSENGER_PAGE_ACCESS_TOKEN;
@@ -63,7 +64,7 @@ async function handleMessage(senderId, text) {
     }
 
     // Save incoming message to database
-    await supabase
+    const { data: savedMessage } = await supabase
       .from('chat_messages')
       .insert([{
         customer_id: customer.id,
@@ -71,7 +72,47 @@ async function handleMessage(senderId, text) {
         message: text,
         channel: 'messenger',
         is_read: false
-      }]);
+      }])
+      .select()
+      .single();
+
+    // Update or create chat session
+    // First, get current session to increment unread count
+    const { data: existingSession } = await supabase
+      .from('chat_sessions')
+      .select('unread_count')
+      .eq('customer_id', customer.id)
+      .single();
+
+    const { data: session } = await supabase
+      .from('chat_sessions')
+      .upsert({
+        customer_id: customer.id,
+        channel: 'messenger',
+        last_message_at: new Date(),
+        is_active: true,
+        unread_count: (existingSession?.unread_count || 0) + 1
+      }, {
+        onConflict: 'customer_id'
+      })
+      .select()
+      .single();
+
+    // Emit real-time updates
+    if (savedMessage) {
+      emitNewMessage(savedMessage, customer.id);
+    }
+    if (session) {
+      emitSessionUpdate(session);
+    }
+
+    // Update total unread count
+    const { data: sessions } = await supabase
+      .from('chat_sessions')
+      .select('unread_count')
+      .eq('is_active', true);
+    const totalUnread = sessions?.reduce((sum, s) => sum + (s.unread_count || 0), 0) || 0;
+    emitUnreadCountUpdate(totalUnread);
 
     // Try to process with flow executor first
     const flowResponse = await flowExecutor.processMessage(customer.id, text, 'messenger');
