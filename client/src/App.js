@@ -13,6 +13,7 @@ import Settings from './pages/Settings';
 import BotFlows from './pages/BotFlows';
 import FlowBuilder from './pages/FlowBuilder';
 import UOM from './pages/UOM';
+import SellingPrice from './pages/SellingPrice';
 import './App.css';
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
           <Route path="/bot-flows" element={<BotFlows />} />
           <Route path="/bot-flows/:id" element={<FlowBuilder />} />
           <Route path="/uom" element={<UOM />} />
+          <Route path="/sellingprice" element={<SellingPrice />} />
         </Routes>
       </Layout>
     </Router>

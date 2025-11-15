@@ -2,20 +2,55 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../api/api';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
+import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import IconButton from '@mui/material/IconButton';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
+import Paper from '@mui/material/Paper';
+import Draggable from 'react-draggable';
+import { useDemoData } from '@mui/x-data-grid-generator';
+
+function PaperComponent(props) {
+  const nodeRef = React.useRef(null);
+  return (
+    <Draggable
+      nodeRef={nodeRef}
+      handle="#draggable-dialog-title"
+      cancel={'[class*="MuiDialogContent-root"]'}
+    >
+      <Paper {...props} ref={nodeRef} />
+    </Draggable>
+  );
+}
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [formData, setFormData] = useState({ name: '', name_mm: '', description: '' });
+  const [deleteID, setDeleteID] = useState();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadCategories();
   }, []);
+
+  const [open, setOpen] = useState(false);
+
+  const handleClickOpen = () => {
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
   const columns = [
     { field: 'name', headerName: 'Category Name', width: 200 },
     { field: 'name_mm', headerName: 'Category Myanmar Name', width: 300 },
@@ -31,7 +66,10 @@ const Categories = () => {
             <IconButton onClick={() => handleEdit(params.row)} aria-label="edit" >
               <EditIcon />
             </IconButton>
-            <IconButton onClick={() => handleDelete(params.id)} aria-label="delete">
+            <IconButton
+              onClick={() => { handleClickOpen(); handleDelete(params.id); }}
+              aria-label="delete"
+            >
               <DeleteIcon />
             </IconButton>
           </Stack>
@@ -40,16 +78,20 @@ const Categories = () => {
     },
   ];
   const loadCategories = async () => {
+    setLoading(true);
     try {
       const res = await getCategories();
       setCategories(res.data.data);
     } catch (error) {
       console.error('Error:', error);
+    } finally {
+      setLoading(false); // Set loading to false after fetching (success or error)
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       if (editingCategory) {
         await updateCategory(editingCategory.id, formData);
@@ -62,6 +104,8 @@ const Categories = () => {
       loadCategories();
     } catch (error) {
       console.error('Error:', error);
+    } finally {
+      setLoading(false); // Set loading to false after fetching (success or error)
     }
   };
 
@@ -72,15 +116,20 @@ const Categories = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure?')) {
-      try {
-        await deleteCategory(id);
-        loadCategories();
-      } catch (error) {
-        console.error('Error:', error);
-      }
-    }
+    setDeleteID(id);
   };
+  const confrimDelete = () => {
+    setLoading(true);
+    try {
+      deleteCategory(deleteID);
+      loadCategories();
+      setOpen(false);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false); // Set loading to false after fetching (success or error)
+    }
+  }
 
   return (
     <div className="page">
@@ -99,6 +148,7 @@ const Categories = () => {
         <DataGrid
           rows={categories}
           columns={columns}
+          loading={loading}
           slots={{ toolbar: GridToolbar }}
           pagination
         />
@@ -130,6 +180,27 @@ const Categories = () => {
           </div>
         </div>
       )}
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        PaperComponent={PaperComponent}
+        aria-labelledby="draggable-dialog-title"
+      >
+        <DialogTitle style={{ cursor: 'move' }} id="draggable-dialog-title">
+          Delete?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Do you want to delete this record?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button autoFocus onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button onClick={confrimDelete}>Confirm</Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

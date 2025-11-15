@@ -33,6 +33,7 @@ const Layout = ({ children }) => {
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', labelMm: 'ပင်မစာမျက်နှာ' },
     { path: '/pos', icon: ShoppingCart, label: 'POS', labelMm: 'ရောင်းချရန်' },
     { path: '/products', icon: Package, label: 'Products', labelMm: 'ကုန်ပစ္စည်းများ' },
+    { path: '/sellingprice', icon: ShoppingBag, label: 'Selling Price', labelMm: 'ရောင်းဈေး' },
     { path: '/categories', icon: ShoppingBag, label: 'Categories', labelMm: 'အမျိုးအစားများ' },
     { path: '/uom', icon: Package, label: 'UOM', labelMm: 'တိုင်းတာမှုယူနစ်' },
     { path: '/customers', icon: Users, label: 'Customers', labelMm: 'ဖောက်သည်များ' },
