@@ -41,12 +41,88 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create order
+// Create order with transaction support
 router.post('/', async (req, res) => {
   try {
     const { customer_id, items, total_amount, discount, tax, payment_method, notes, source } = req.body;
     
-    // Create order
+    // Validate input
+    if (!customer_id || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid order data: customer_id and items are required' 
+      });
+    }
+
+    // Validate all items have required fields
+    for (const item of items) {
+      if (!item.product_id || !item.quantity || !item.price) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid item data: product_id, quantity, and price are required' 
+        });
+      }
+      if (item.quantity <= 0) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Item quantity must be greater than 0' 
+        });
+      }
+    }
+
+    // Check if customer exists
+    const { data: customer, error: customerError } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('id', customer_id)
+      .single();
+
+    if (customerError || !customer) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Customer not found' 
+      });
+    }
+
+    // Check if all products exist and have sufficient stock
+    const productIds = items.map(item => item.product_id);
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('id, name, stock_quantity')
+      .in('id', productIds);
+
+    if (productsError) throw productsError;
+
+    if (products.length !== productIds.length) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'One or more products not found' 
+      });
+    }
+
+    // Check stock availability
+    const stockIssues = [];
+    for (const item of items) {
+      const product = products.find(p => p.id === item.product_id);
+      if (product && product.stock_quantity < item.quantity) {
+        stockIssues.push({
+          product_id: product.id,
+          product_name: product.name,
+          available: product.stock_quantity,
+          requested: item.quantity
+        });
+      }
+    }
+
+    if (stockIssues.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Insufficient stock for one or more products',
+        details: stockIssues
+      });
+    }
+
+    // Create order (PostgreSQL will handle transaction atomicity)
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert([{
@@ -70,27 +146,61 @@ router.post('/', async (req, res) => {
       product_id: item.product_id,
       quantity: item.quantity,
       price: item.price,
-      subtotal: item.quantity * item.price
+      subtotal: item.quantity * item.price,
+      uom_id: item.uom_id || null
     }));
 
     const { error: itemsError } = await supabase
       .from('order_items')
       .insert(orderItems);
 
-    if (itemsError) throw itemsError;
+    if (itemsError) {
+      // Rollback: delete the order if items insertion fails
+      await supabase.from('orders').delete().eq('id', order.id);
+      throw itemsError;
+    }
 
     // Update product stock
+    let stockUpdateFailed = false;
     for (const item of items) {
       const { error: stockError } = await supabase.rpc('update_product_stock', {
         product_id: item.product_id,
         quantity_change: -item.quantity
       });
-      if (stockError) console.error('Stock update error:', stockError);
+      
+      if (stockError) {
+        console.error('Stock update error:', stockError);
+        stockUpdateFailed = true;
+      }
     }
 
-    res.json({ success: true, data: order });
+    // If stock update failed, log warning but don't fail the order
+    if (stockUpdateFailed) {
+      console.warn(`⚠️  Stock update failed for order ${order.id}, manual adjustment may be needed`);
+    }
+
+    // Fetch complete order with items
+    const { data: completeOrder } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        customers(name, phone),
+        order_items(*, products(name, name_mm))
+      `)
+      .eq('id', order.id)
+      .single();
+
+    res.json({ 
+      success: true, 
+      data: completeOrder || order,
+      warning: stockUpdateFailed ? 'Order created but stock update may have failed' : null
+    });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Order creation error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Failed to create order'
+    });
   }
 });
 

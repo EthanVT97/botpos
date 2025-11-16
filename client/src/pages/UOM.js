@@ -39,18 +39,20 @@ const UOM = () => {
   const loadUOMs = async () => {
     try {
       const res = await getUOMs();
-      setUOMs(res.data.data || []);
+      setUOMs(res.data?.data || []);
     } catch (error) {
       console.error('Error loading UOMs:', error);
+      alert('Failed to load UOMs: ' + (error.response?.data?.error || error.message));
     }
   };
 
   const loadConversions = async () => {
     try {
       const res = await getUOMConversions();
-      setConversions(res.data.data || []);
+      setConversions(res.data?.data || []);
     } catch (error) {
       console.error('Error loading conversions:', error);
+      alert('Failed to load conversions: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -65,10 +67,10 @@ const UOM = () => {
       setShowModal(false);
       setEditingUOM(null);
       setFormData({ code: '', name: '', name_mm: '', description: '' });
-      loadUOMs();
+      await loadUOMs();
     } catch (error) {
       console.error('Error saving UOM:', error);
-      alert('Error: ' + (error.response?.data?.error || error.message));
+      alert('Failed to save UOM: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -78,10 +80,10 @@ const UOM = () => {
       await addUOMConversion(conversionData);
       setShowConversionModal(false);
       setConversionData({ from_uom_id: '', to_uom_id: '', conversion_factor: '' });
-      loadConversions();
+      await loadConversions();
     } catch (error) {
       console.error('Error saving conversion:', error);
-      alert('Error: ' + (error.response?.data?.error || error.message));
+      alert('Failed to save conversion: ' + (error.response?.data?.error || error.message));
     }
   };
 

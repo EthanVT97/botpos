@@ -19,9 +19,10 @@ const Customers = () => {
   const loadCustomers = async () => {
     try {
       const res = await getCustomers();
-      setCustomers(res.data.data);
+      setCustomers(res.data?.data || []);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error loading customers:', error);
+      alert('Failed to load customers: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -36,9 +37,10 @@ const Customers = () => {
       setShowModal(false);
       setEditingCustomer(null);
       setFormData({ name: '', phone: '', email: '', address: '', viber_id: '', telegram_id: '', messenger_id: '' });
-      loadCustomers();
+      await loadCustomers();
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error saving customer:', error);
+      alert('Failed to save customer: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -49,12 +51,13 @@ const Customers = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure?')) {
+    if (window.confirm('Are you sure you want to delete this customer?')) {
       try {
         await deleteCustomer(id);
-        loadCustomers();
+        await loadCustomers();
       } catch (error) {
-        console.error('Error:', error);
+        console.error('Error deleting customer:', error);
+        alert('Failed to delete customer: ' + (error.response?.data?.error || error.message));
       }
     }
   };

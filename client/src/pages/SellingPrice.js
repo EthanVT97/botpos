@@ -62,10 +62,10 @@ const SellingPrice = () => {
         setLoading(true);
         try {
             const res = await getProducts();
-            setProducts(res.data.data);
+            setProducts(res.data?.data || []);
         } catch (error) {
             console.error('Error loading products:', error);
-            showSnackbar('Error loading products', 'error');
+            showSnackbar(error.response?.data?.error || 'Error loading products', 'error');
         } finally {
             setLoading(false);
         }

@@ -13,35 +13,68 @@ const POS = () => {
   const [showUOMModal, setShowUOMModal] = useState(false);
   const [selectedProductForUOM, setSelectedProductForUOM] = useState(null);
   const [loadingProduct, setLoadingProduct] = useState(null);
+  const [uomCache, setUomCache] = useState({});
 
   useEffect(() => {
     loadProducts();
     loadCustomers();
+    
+    // Load cart from localStorage
+    const savedCart = localStorage.getItem('pos_cart');
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch (error) {
+        console.error('Error loading saved cart:', error);
+      }
+    }
   }, []);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    if (cart.length > 0) {
+      localStorage.setItem('pos_cart', JSON.stringify(cart));
+    } else {
+      localStorage.removeItem('pos_cart');
+    }
+  }, [cart]);
 
   const loadProducts = async () => {
     try {
       const res = await getProducts();
-      setProducts(res.data.data || []);
+      setProducts(res.data?.data || []);
     } catch (error) {
       console.error('Error loading products:', error);
+      alert('Failed to load products. Please refresh the page.');
     }
   };
 
   const loadCustomers = async () => {
     try {
       const res = await getCustomers();
-      setCustomers(res.data.data || []);
+      setCustomers(res.data?.data || []);
     } catch (error) {
       console.error('Error loading customers:', error);
+      alert('Failed to load customers. Please refresh the page.');
     }
   };
 
   const loadProductUOMs = async (productId) => {
+    // Check cache first
+    if (uomCache[productId]) {
+      console.log('Using cached UOMs for product:', productId);
+      return uomCache[productId];
+    }
+
     try {
       const res = await getProductUOMs(productId);
-      console.log('Product UOMs loaded:', res.data.data);
-      return res.data.data || [];
+      const uoms = res.data?.data || [];
+      console.log('Product UOMs loaded:', uoms);
+      
+      // Cache the result
+      setUomCache(prev => ({ ...prev, [productId]: uoms }));
+      
+      return uoms;
     } catch (error) {
       console.error('Error loading UOMs:', error);
       return [];
@@ -53,7 +86,7 @@ const POS = () => {
     setLoadingProduct(product.id);
     
     try {
-      // Always check for UOMs when clicking a product
+      // Check for UOMs when clicking a product
       const uoms = await loadProductUOMs(product.id);
       
       console.log(`Product: ${product.name}, UOMs found:`, uoms.length);
@@ -68,6 +101,9 @@ const POS = () => {
         console.log('No UOMs configured, adding directly');
         addToCartDirect(product, null);
       }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      alert('Failed to add product to cart. Please try again.');
     } finally {
       setLoadingProduct(null);
     }

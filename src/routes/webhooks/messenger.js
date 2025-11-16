@@ -4,9 +4,19 @@ const axios = require('axios');
 const { supabase } = require('../../config/supabase');
 const { emitNewMessage, emitSessionUpdate, emitUnreadCountUpdate } = require('../../config/socket');
 const flowExecutor = require('../../utils/flowExecutor');
+const { verifyMessengerWebhook } = require('../../middleware/webhookVerification');
 
 const PAGE_ACCESS_TOKEN = process.env.MESSENGER_PAGE_ACCESS_TOKEN;
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN;
+const FB_API_VERSION = process.env.FB_API_VERSION || 'v18.0';
+
+// Helper to check if Messenger is configured
+const isMessengerConfigured = () => {
+  return PAGE_ACCESS_TOKEN && 
+         PAGE_ACCESS_TOKEN !== 'your_messenger_page_access_token' &&
+         VERIFY_TOKEN &&
+         VERIFY_TOKEN !== 'your_messenger_verify_token';
+};
 
 // Webhook verification
 router.get('/', (req, res) => {
@@ -14,17 +24,35 @@ router.get('/', (req, res) => {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  if (mode && token === VERIFY_TOKEN) {
-    res.status(200).send(challenge);
+  if (mode && token) {
+    if (token === VERIFY_TOKEN) {
+      console.log('✅ Messenger webhook verified');
+      res.status(200).send(challenge);
+    } else {
+      console.warn('⚠️  Invalid Messenger verify token');
+      res.sendStatus(403);
+    }
   } else {
-    res.sendStatus(403);
+    res.sendStatus(400);
   }
 });
 
-// Webhook handler
-router.post('/', async (req, res) => {
+// Webhook handler with verification
+router.post('/', verifyMessengerWebhook, async (req, res) => {
   try {
+    // Check if Messenger is configured
+    if (!isMessengerConfigured()) {
+      console.warn('⚠️  Messenger webhook received but bot not configured');
+      return res.status(503).json({ error: 'Messenger bot not configured' });
+    }
+
     const { entry } = req.body;
+    
+    // Validate payload structure
+    if (!entry || !Array.isArray(entry)) {
+      console.warn('⚠️  Invalid Messenger webhook payload');
+      return res.status(200).send('EVENT_RECEIVED');
+    }
 
     if (entry && entry[0].messaging) {
       for (const event of entry[0].messaging) {
@@ -40,79 +68,20 @@ router.post('/', async (req, res) => {
 
     res.status(200).send('EVENT_RECEIVED');
   } catch (error) {
-    console.error('Messenger error:', error);
-    res.status(500).send('Error');
+    console.error('Messenger webhook error:', error);
+    // Always return 200 to prevent Facebook from retrying
+    res.status(200).send('EVENT_RECEIVED');
   }
 });
 
 async function handleMessage(senderId, text) {
   try {
-    // Find or create customer
-    let { data: customer } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('messenger_id', senderId)
-      .single();
+    // Get or create customer
+    const { getOrCreateCustomer, saveIncomingMessage, saveOutgoingMessage } = require('../../utils/chatHelpers');
+    const customer = await getOrCreateCustomer(senderId, `Messenger User`, 'messenger');
 
-    if (!customer) {
-      const { data: newCustomer } = await supabase
-        .from('customers')
-        .insert([{ name: `User ${senderId}`, messenger_id: senderId }])
-        .select()
-        .single();
-      customer = newCustomer;
-    }
-
-    // Save incoming message to database
-    const { data: savedMessage } = await supabase
-      .from('chat_messages')
-      .insert([{
-        customer_id: customer.id,
-        sender_type: 'customer',
-        message: text,
-        channel: 'messenger',
-        is_read: false
-      }])
-      .select()
-      .single();
-
-    // Update or create chat session
-    // First, get current session to increment unread count
-    const { data: existingSession } = await supabase
-      .from('chat_sessions')
-      .select('unread_count')
-      .eq('customer_id', customer.id)
-      .single();
-
-    const { data: session } = await supabase
-      .from('chat_sessions')
-      .upsert({
-        customer_id: customer.id,
-        channel: 'messenger',
-        last_message_at: new Date(),
-        is_active: true,
-        unread_count: (existingSession?.unread_count || 0) + 1
-      }, {
-        onConflict: 'customer_id'
-      })
-      .select()
-      .single();
-
-    // Emit real-time updates
-    if (savedMessage) {
-      emitNewMessage(savedMessage, customer.id);
-    }
-    if (session) {
-      emitSessionUpdate(session);
-    }
-
-    // Update total unread count
-    const { data: sessions } = await supabase
-      .from('chat_sessions')
-      .select('unread_count')
-      .eq('is_active', true);
-    const totalUnread = sessions?.reduce((sum, s) => sum + (s.unread_count || 0), 0) || 0;
-    emitUnreadCountUpdate(totalUnread);
+    // Save incoming message (this also updates session and unread count)
+    await saveIncomingMessage(customer.id, text, 'messenger');
 
     // Try to process with flow executor first
     const flowResponse = await flowExecutor.processMessage(customer.id, text, 'messenger');
@@ -122,15 +91,7 @@ async function handleMessage(senderId, text) {
       await sendTextMessage(senderId, flowResponse.message);
       
       // Save bot response
-      await supabase
-        .from('chat_messages')
-        .insert([{
-          customer_id: customer.id,
-          sender_type: 'admin',
-          message: flowResponse.message,
-          channel: 'messenger',
-          is_read: true
-        }]);
+      await saveOutgoingMessage(customer.id, flowResponse.message, 'messenger');
     } else {
       // Fallback to default handling
       let response;
@@ -149,15 +110,7 @@ async function handleMessage(senderId, text) {
 
       // Save bot response
       if (response) {
-        await supabase
-          .from('chat_messages')
-          .insert([{
-            customer_id: customer.id,
-            sender_type: 'admin',
-            message: response,
-            channel: 'messenger',
-            is_read: true
-          }]);
+        await saveOutgoingMessage(customer.id, response, 'messenger');
       }
     }
   } catch (error) {
@@ -172,7 +125,7 @@ async function sendTextMessage(recipientId, text) {
   };
 
   await axios.post(
-    `https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+    `https://graph.facebook.com/${FB_API_VERSION}/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
     messageData
   );
 }
@@ -191,15 +144,8 @@ async function sendProductList(recipientId, customer) {
   await sendTextMessage(recipientId, productText);
   
   // Save bot response
-  await supabase
-    .from('chat_messages')
-    .insert([{
-      customer_id: customer.id,
-      sender_type: 'admin',
-      message: productText,
-      channel: 'messenger',
-      is_read: true
-    }]);
+  const { saveOutgoingMessage } = require('../../utils/chatHelpers');
+  await saveOutgoingMessage(customer.id, productText, 'messenger');
 }
 
 async function sendOrderList(recipientId, customer) {

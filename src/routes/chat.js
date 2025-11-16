@@ -70,7 +70,12 @@ router.post('/send', chatLimiter, chatValidation.send, async (req, res) => {
       .eq('id', customerId)
       .single();
 
-    if (customerError) throw customerError;
+    if (customerError || !customer) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Customer not found' 
+      });
+    }
 
     // Determine channel if not specified
     const targetChannel = channel || 
@@ -90,33 +95,48 @@ router.post('/send', chatLimiter, chatValidation.send, async (req, res) => {
     let sendError = null;
 
     try {
+      const { isTelegramAvailable, isViberAvailable } = require('../config/bots');
+      
       switch (targetChannel) {
         case 'telegram':
-          if (customer.telegram_id) {
+          if (!isTelegramAvailable()) {
+            sendError = 'Telegram bot not configured';
+          } else if (customer.telegram_id) {
             const result = await telegramBot.sendMessage(customer.telegram_id, message);
             channelMessageId = result.message_id.toString();
+          } else {
+            sendError = 'Customer has no Telegram ID';
           }
           break;
 
         case 'viber':
-          if (customer.viber_id) {
+          if (!isViberAvailable()) {
+            sendError = 'Viber bot not configured';
+          } else if (customer.viber_id) {
             await viberBot.sendMessage({ id: customer.viber_id }, [
               new ViberMessage.Text(message)
             ]);
+          } else {
+            sendError = 'Customer has no Viber ID';
           }
           break;
 
         case 'messenger':
-          if (customer.messenger_id) {
-            const PAGE_ACCESS_TOKEN = process.env.MESSENGER_PAGE_ACCESS_TOKEN;
+          const PAGE_ACCESS_TOKEN = process.env.MESSENGER_PAGE_ACCESS_TOKEN;
+          if (!PAGE_ACCESS_TOKEN || PAGE_ACCESS_TOKEN === 'your_messenger_page_access_token') {
+            sendError = 'Messenger bot not configured';
+          } else if (customer.messenger_id) {
+            const FB_API_VERSION = process.env.FB_API_VERSION || 'v18.0';
             const response = await axios.post(
-              `https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+              `https://graph.facebook.com/${FB_API_VERSION}/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
               {
                 recipient: { id: customer.messenger_id },
                 message: { text: message }
               }
             );
             channelMessageId = response.data.message_id;
+          } else {
+            sendError = 'Customer has no Messenger ID';
           }
           break;
       }

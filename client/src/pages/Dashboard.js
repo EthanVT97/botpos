@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, ShoppingCart, Users, Package, MessageCircle } from 'lucide-react';
 import { getSalesSummary, getTopProducts, getLowStock, getUnreadCount } from '../api/api';
 import Chat from '../components/ChatRealtime';
-import api from '../api/api';
+import api from '../api/client';
 
 const Dashboard = () => {
   const [summary, setSummary] = useState(null);
@@ -27,22 +27,24 @@ const Dashboard = () => {
         getTopProducts(5),
         getLowStock()
       ]);
-      setSummary(summaryRes.data.data);
-      setTopProducts(topRes.data.data);
-      setLowStock(stockRes.data.data);
+      setSummary(summaryRes.data?.data || null);
+      setTopProducts(topRes.data?.data || []);
+      setLowStock(stockRes.data?.data || []);
     } catch (error) {
       console.error('Error loading dashboard:', error);
+      // Don't show alert for dashboard - just log the error
     }
   };
 
   const loadUnreadMessages = async () => {
     try {
       const response = await getUnreadCount();
-      if (response.data.success) {
-        setUnreadMessages(response.data.data.total);
+      if (response.data?.success) {
+        setUnreadMessages(response.data.data?.total || 0);
       }
     } catch (error) {
       console.error('Error loading unread messages:', error);
+      // Silent fail for unread count
     }
   };
 

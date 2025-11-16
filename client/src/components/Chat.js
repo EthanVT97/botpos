@@ -31,6 +31,7 @@ const Chat = ({ api }) => {
         clearInterval(pollIntervalRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCustomer]);
 
   useEffect(() => {

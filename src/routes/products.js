@@ -38,18 +38,65 @@ router.post('/', async (req, res) => {
   try {
     const { name, name_mm, description, price, cost, category_id, sku, barcode, stock_quantity, image_url, base_uom_id } = req.body;
     
+    // Validate required fields
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product name is required' 
+      });
+    }
+
+    if (price === undefined || price === null || price < 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Valid price is required' 
+      });
+    }
+
+    // Validate category exists if provided
+    if (category_id) {
+      const { data: category } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('id', category_id)
+        .single();
+      
+      if (!category) {
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Category not found' 
+        });
+      }
+    }
+
+    // Check for duplicate SKU if provided
+    if (sku) {
+      const { data: existingProduct } = await supabase
+        .from('products')
+        .select('id')
+        .eq('sku', sku)
+        .single();
+      
+      if (existingProduct) {
+        return res.status(409).json({ 
+          success: false, 
+          error: 'Product with this SKU already exists' 
+        });
+      }
+    }
+    
     const { data, error } = await supabase
       .from('products')
       .insert([{
-        name,
-        name_mm,
+        name: name.trim(),
+        name_mm: name_mm?.trim(),
         description,
-        price,
-        cost,
+        price: parseFloat(price),
+        cost: cost ? parseFloat(cost) : null,
         category_id,
-        sku,
-        barcode,
-        stock_quantity,
+        sku: sku?.trim(),
+        barcode: barcode?.trim(),
+        stock_quantity: stock_quantity || 0,
         image_url,
         base_uom_id: base_uom_id || null
       }])
@@ -60,7 +107,10 @@ router.post('/', async (req, res) => {
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error creating product:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Failed to create product'
+    });
   }
 });
 

@@ -1,14 +1,27 @@
 const express = require('express');
 const router = express.Router();
-const { telegramBot } = require('../../config/bots');
+const { telegramBot, isTelegramAvailable } = require('../../config/bots');
 const { supabase } = require('../../config/supabase');
 const { emitNewMessage, emitSessionUpdate, emitUnreadCountUpdate } = require('../../config/socket');
 const flowExecutor = require('../../utils/flowExecutor');
+const { verifyTelegramWebhook } = require('../../middleware/webhookVerification');
 
-// Telegram webhook
-router.post('/', async (req, res) => {
+// Telegram webhook with verification
+router.post('/', verifyTelegramWebhook, async (req, res) => {
   try {
+    // Check if Telegram bot is configured
+    if (!isTelegramAvailable()) {
+      console.warn('⚠️  Telegram webhook received but bot not configured');
+      return res.status(503).json({ error: 'Telegram bot not configured' });
+    }
+
     const { message } = req.body;
+    
+    // Validate message structure
+    if (!message || !message.text || !message.chat || !message.from) {
+      console.warn('⚠️  Invalid Telegram webhook payload');
+      return res.status(200).send('OK'); // Return 200 to avoid retries
+    }
     
     if (message && message.text) {
       const chatId = message.chat.id;
@@ -16,91 +29,32 @@ router.post('/', async (req, res) => {
       const userName = message.from.first_name;
       const text = message.text;
 
-      // Find or create customer
-      let { data: customer } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('telegram_id', userId.toString())
-        .single();
+      // Get or create customer
+      const { getOrCreateCustomer, saveIncomingMessage, saveOutgoingMessage } = require('../../utils/chatHelpers');
+      const customer = await getOrCreateCustomer(userId.toString(), userName, 'telegram');
 
-      if (!customer) {
-        const { data: newCustomer } = await supabase
-          .from('customers')
-          .insert([{ name: userName, telegram_id: userId.toString() }])
-          .select()
-          .single();
-        customer = newCustomer;
-      }
-
-      // Save incoming message to database
-      const { data: savedMessage } = await supabase
-        .from('chat_messages')
-        .insert([{
-          customer_id: customer.id,
-          sender_type: 'customer',
-          message: text,
-          channel: 'telegram',
-          channel_message_id: message.message_id.toString(),
-          is_read: false
-        }])
-        .select()
-        .single();
-
-      // Update or create chat session
-      // First, get current session to increment unread count
-      const { data: existingSession } = await supabase
-        .from('chat_sessions')
-        .select('unread_count')
-        .eq('customer_id', customer.id)
-        .single();
-
-      const { data: session } = await supabase
-        .from('chat_sessions')
-        .upsert({
-          customer_id: customer.id,
-          channel: 'telegram',
-          last_message_at: new Date(),
-          is_active: true,
-          unread_count: (existingSession?.unread_count || 0) + 1
-        }, {
-          onConflict: 'customer_id'
-        })
-        .select()
-        .single();
-
-      // Emit real-time updates
-      if (savedMessage) {
-        emitNewMessage(savedMessage, customer.id);
-      }
-      if (session) {
-        emitSessionUpdate(session);
-      }
-
-      // Update total unread count
-      const { data: sessions } = await supabase
-        .from('chat_sessions')
-        .select('unread_count')
-        .eq('is_active', true);
-      const totalUnread = sessions?.reduce((sum, s) => sum + (s.unread_count || 0), 0) || 0;
-      emitUnreadCountUpdate(totalUnread);
+      // Save incoming message (this also updates session and unread count)
+      await saveIncomingMessage(
+        customer.id, 
+        text, 
+        'telegram', 
+        message.message_id.toString()
+      );
 
       // Try to process with flow executor first
       const flowResponse = await flowExecutor.processMessage(customer.id, text, 'telegram');
       
       if (flowResponse && flowResponse.message) {
         // Send flow response
-        await telegramBot.sendMessage(chatId, flowResponse.message);
+        const sentMessage = await telegramBot.sendMessage(chatId, flowResponse.message);
         
         // Save bot response
-        await supabase
-          .from('chat_messages')
-          .insert([{
-            customer_id: customer.id,
-            sender_type: 'admin',
-            message: flowResponse.message,
-            channel: 'telegram',
-            is_read: true
-          }]);
+        await saveOutgoingMessage(
+          customer.id,
+          flowResponse.message,
+          'telegram',
+          sentMessage.message_id.toString()
+        );
       } else {
         // Fallback to default handling
         if (text.startsWith('/')) {
@@ -112,26 +66,24 @@ router.post('/', async (req, res) => {
             '/orders - မှာယူမှုများကြည့်ရန်\n' +
             '/help - အကူအညီ';
           
-          await telegramBot.sendMessage(chatId, response);
+          const sentMessage = await telegramBot.sendMessage(chatId, response);
           
           // Save bot response
-          await supabase
-            .from('chat_messages')
-            .insert([{
-              customer_id: customer.id,
-              sender_type: 'admin',
-              message: response,
-              channel: 'telegram',
-              is_read: true
-            }]);
+          await saveOutgoingMessage(
+            customer.id,
+            response,
+            'telegram',
+            sentMessage.message_id.toString()
+          );
         }
       }
     }
 
     res.status(200).send('OK');
   } catch (error) {
-    console.error('Telegram error:', error);
-    res.status(500).send('Error');
+    console.error('Telegram webhook error:', error);
+    // Always return 200 to prevent Telegram from retrying
+    res.status(200).send('OK');
   }
 });
 

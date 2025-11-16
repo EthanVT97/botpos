@@ -21,18 +21,20 @@ const Inventory = () => {
   const loadMovements = async () => {
     try {
       const res = await getInventoryMovements();
-      setMovements(res.data.data);
+      setMovements(res.data?.data || []);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error loading movements:', error);
+      alert('Failed to load inventory movements: ' + (error.response?.data?.error || error.message));
     }
   };
 
   const loadProducts = async () => {
     try {
       const res = await getProducts();
-      setProducts(res.data.data);
+      setProducts(res.data?.data || []);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error loading products:', error);
+      alert('Failed to load products: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -42,10 +44,10 @@ const Inventory = () => {
       await addInventoryMovement(formData);
       setShowModal(false);
       setFormData({ product_id: '', quantity: '', type: 'in', notes: '' });
-      loadMovements();
-      loadProducts();
+      await Promise.all([loadMovements(), loadProducts()]);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error adding movement:', error);
+      alert('Failed to add inventory movement: ' + (error.response?.data?.error || error.message));
     }
   };
 

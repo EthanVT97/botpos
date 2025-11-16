@@ -1,90 +1,48 @@
 const express = require('express');
 const router = express.Router();
-const { viberBot, ViberMessage } = require('../../config/bots');
+const { viberBot, ViberMessage, isViberAvailable } = require('../../config/bots');
 const { supabase } = require('../../config/supabase');
 const { emitNewMessage, emitSessionUpdate, emitUnreadCountUpdate } = require('../../config/socket');
 const flowExecutor = require('../../utils/flowExecutor');
+const { verifyViberWebhook } = require('../../middleware/webhookVerification');
 
-// Viber webhook
-router.post('/', (req, res) => {
-  viberBot.middleware()(req, res, () => {
-    res.status(200).send();
-  });
+// Viber webhook with verification
+router.post('/', verifyViberWebhook, (req, res) => {
+  // Check if Viber bot is configured
+  if (!isViberAvailable()) {
+    console.warn('⚠️  Viber webhook received but bot not configured');
+    return res.status(503).json({ error: 'Viber bot not configured' });
+  }
+
+  try {
+    viberBot.middleware()(req, res, () => {
+      res.status(200).send();
+    });
+  } catch (error) {
+    console.error('Viber webhook error:', error);
+    res.status(200).send(); // Return 200 to avoid retries
+  }
 });
 
 // Handle Viber messages
 viberBot.on('message', async (message) => {
-  const userId = message.userProfile.id;
-  const userName = message.userProfile.name;
-  const text = message.text;
-
   try {
-    // Find or create customer
-    let { data: customer } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('viber_id', userId)
-      .single();
-
-    if (!customer) {
-      const { data: newCustomer } = await supabase
-        .from('customers')
-        .insert([{ name: userName, viber_id: userId }])
-        .select()
-        .single();
-      customer = newCustomer;
+    // Validate message structure
+    if (!message || !message.userProfile || !message.text) {
+      console.warn('⚠️  Invalid Viber message structure');
+      return;
     }
 
-    // Save incoming message to database
-    const { data: savedMessage } = await supabase
-      .from('chat_messages')
-      .insert([{
-        customer_id: customer.id,
-        sender_type: 'customer',
-        message: text,
-        channel: 'viber',
-        is_read: false
-      }])
-      .select()
-      .single();
+    const userId = message.userProfile.id;
+    const userName = message.userProfile.name;
+    const text = message.text;
 
-    // Update or create chat session
-    // First, get current session to increment unread count
-    const { data: existingSession } = await supabase
-      .from('chat_sessions')
-      .select('unread_count')
-      .eq('customer_id', customer.id)
-      .single();
+    // Get or create customer
+    const { getOrCreateCustomer, saveIncomingMessage, saveOutgoingMessage } = require('../../utils/chatHelpers');
+    const customer = await getOrCreateCustomer(userId, userName, 'viber');
 
-    const { data: session } = await supabase
-      .from('chat_sessions')
-      .upsert({
-        customer_id: customer.id,
-        channel: 'viber',
-        last_message_at: new Date(),
-        is_active: true,
-        unread_count: (existingSession?.unread_count || 0) + 1
-      }, {
-        onConflict: 'customer_id'
-      })
-      .select()
-      .single();
-
-    // Emit real-time updates
-    if (savedMessage) {
-      emitNewMessage(savedMessage, customer.id);
-    }
-    if (session) {
-      emitSessionUpdate(session);
-    }
-
-    // Update total unread count
-    const { data: sessions } = await supabase
-      .from('chat_sessions')
-      .select('unread_count')
-      .eq('is_active', true);
-    const totalUnread = sessions?.reduce((sum, s) => sum + (s.unread_count || 0), 0) || 0;
-    emitUnreadCountUpdate(totalUnread);
+    // Save incoming message (this also updates session and unread count)
+    await saveIncomingMessage(customer.id, text, 'viber');
 
     // Try to process with flow executor first
     const flowResponse = await flowExecutor.processMessage(customer.id, text, 'viber');
@@ -96,15 +54,7 @@ viberBot.on('message', async (message) => {
       ]);
       
       // Save bot response
-      await supabase
-        .from('chat_messages')
-        .insert([{
-          customer_id: customer.id,
-          sender_type: 'admin',
-          message: flowResponse.message,
-          channel: 'viber',
-          is_read: true
-        }]);
+      await saveOutgoingMessage(customer.id, flowResponse.message, 'viber');
     } else {
       // Fallback to default handling
       if (text.startsWith('/')) {
@@ -121,15 +71,7 @@ viberBot.on('message', async (message) => {
         ]);
         
         // Save bot response
-        await supabase
-          .from('chat_messages')
-          .insert([{
-            customer_id: customer.id,
-            sender_type: 'admin',
-            message: response,
-            channel: 'viber',
-            is_read: true
-          }]);
+        await saveOutgoingMessage(customer.id, response, 'viber');
       }
     }
   } catch (error) {

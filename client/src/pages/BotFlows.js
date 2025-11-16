@@ -27,11 +27,11 @@ function BotFlows() {
     try {
       setLoading(true);
       const response = await api.get('/bot-flows');
-      setFlows(response.data.data);
+      setFlows(response.data?.data || []);
       setError('');
     } catch (err) {
-      setError('Failed to load bot flows');
-      console.error(err);
+      setError(err.response?.data?.error || 'Failed to load bot flows');
+      console.error('Error loading flows:', err);
     } finally {
       setLoading(false);
     }
@@ -50,11 +50,12 @@ function BotFlows() {
         trigger_type: 'keyword',
         trigger_value: ''
       });
+      setError('');
       // Navigate to flow builder
       navigate(`/bot-flows/${response.data.data.id}`);
     } catch (err) {
-      setError('Failed to create flow');
-      console.error(err);
+      setError(err.response?.data?.error || 'Failed to create flow');
+      console.error('Error creating flow:', err);
     }
   };
 
@@ -66,9 +67,10 @@ function BotFlows() {
     try {
       await api.delete(`/bot-flows/${id}`);
       setFlows(flows.filter(f => f.id !== id));
+      setError('');
     } catch (err) {
-      setError('Failed to delete flow');
-      console.error(err);
+      setError(err.response?.data?.error || 'Failed to delete flow');
+      console.error('Error deleting flow:', err);
     }
   };
 
@@ -81,9 +83,10 @@ function BotFlows() {
       setFlows(flows.map(f => 
         f.id === flow.id ? { ...f, is_active: !f.is_active } : f
       ));
+      setError('');
     } catch (err) {
-      setError('Failed to update flow');
-      console.error(err);
+      setError(err.response?.data?.error || 'Failed to update flow');
+      console.error('Error updating flow:', err);
     }
   };
 
@@ -91,9 +94,10 @@ function BotFlows() {
     try {
       const response = await api.post(`/bot-flows/${id}/duplicate`);
       setFlows([response.data.data, ...flows]);
+      setError('');
     } catch (err) {
-      setError('Failed to duplicate flow');
-      console.error(err);
+      setError(err.response?.data?.error || 'Failed to duplicate flow');
+      console.error('Error duplicating flow:', err);
     }
   };
 

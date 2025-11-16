@@ -193,19 +193,20 @@ const Products = () => {
   const handleDelete = async (id) => {
     setDeleteID(id);
   };
-  const confrimDelete = () => {
+  const confirmDelete = async () => {
     setLoading(true);
     try {
-      deleteProduct(deleteID);
-      loadProducts();
+      await deleteProduct(deleteID);
+      await loadProducts();
       setOpen(false);
+      setErrorDelMessage(false);
     } catch (error) {
       console.error('Error:', error);
       setErrorDelMessage(true);
+      setErrorMessage(error.response?.data?.error || error.message || 'Failed to delete product');
       setOpen(false);
-      setErrorMessage(error.message)
     } finally {
-      setLoading(false); // Set loading to false after fetching (success or error)
+      setLoading(false);
     }
   }
 
@@ -514,7 +515,7 @@ const Products = () => {
           <Button autoFocus onClick={handleClose}>
             Cancel
           </Button>
-          <Button onClick={confrimDelete}>Confirm</Button>
+          <Button onClick={confirmDelete}>Confirm</Button>
         </DialogActions>
       </Dialog>
     </div>

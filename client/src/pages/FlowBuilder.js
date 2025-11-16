@@ -51,42 +51,51 @@ function FlowBuilder() {
       setLoading(true);
       const response = await api.get(`/bot-flows/${id}`);
       const flowData = response.data.data;
+      
+      if (!flowData) {
+        throw new Error('Flow data not found');
+      }
+      
       setFlow(flowData);
 
       // Convert database nodes to ReactFlow nodes
-      const reactFlowNodes = flowData.nodes.map(node => ({
-        id: node.node_id,
-        type: node.node_type,
-        position: { x: node.position_x, y: node.position_y },
-        data: {
-          label: node.label,
-          ...node.config
-        }
-      }));
+      const reactFlowNodes = Array.isArray(flowData.nodes) 
+        ? flowData.nodes.map(node => ({
+            id: node.node_id,
+            type: node.node_type,
+            position: { x: node.position_x || 0, y: node.position_y || 0 },
+            data: {
+              label: node.label || 'Untitled',
+              ...(node.config || {})
+            }
+          }))
+        : [];
 
       // Convert database connections to ReactFlow edges
-      const reactFlowEdges = flowData.connections.map((conn, index) => ({
-        id: `e${conn.source_node_id}-${conn.target_node_id}-${index}`,
-        source: conn.source_node_id,
-        target: conn.target_node_id,
-        label: conn.label,
-        type: 'smoothstep',
-        animated: true,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-        },
-        data: {
-          condition_type: conn.condition_type,
-          condition_value: conn.condition_value
-        }
-      }));
+      const reactFlowEdges = Array.isArray(flowData.connections)
+        ? flowData.connections.map((conn, index) => ({
+            id: `e${conn.source_node_id}-${conn.target_node_id}-${index}`,
+            source: conn.source_node_id,
+            target: conn.target_node_id,
+            label: conn.label || '',
+            type: 'smoothstep',
+            animated: true,
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+            },
+            data: {
+              condition_type: conn.condition_type || 'always',
+              condition_value: conn.condition_value || null
+            }
+          }))
+        : [];
 
       setNodes(reactFlowNodes);
       setEdges(reactFlowEdges);
       setError('');
     } catch (err) {
-      setError('Failed to load flow');
-      console.error(err);
+      setError(err.response?.data?.error || err.message || 'Failed to load flow');
+      console.error('Error loading flow:', err);
     } finally {
       setLoading(false);
     }

@@ -13,18 +13,20 @@ const Orders = () => {
   const loadOrders = async () => {
     try {
       const res = await getOrders();
-      setOrders(res.data.data);
+      setOrders(res.data?.data || []);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error loading orders:', error);
+      alert('Failed to load orders: ' + (error.response?.data?.error || error.message));
     }
   };
 
   const handleStatusChange = async (orderId, newStatus) => {
     try {
       await updateOrderStatus(orderId, newStatus);
-      loadOrders();
+      await loadOrders();
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error updating status:', error);
+      alert('Failed to update order status: ' + (error.response?.data?.error || error.message));
     }
   };
 
