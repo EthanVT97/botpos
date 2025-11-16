@@ -1,16 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { getProducts, getCategories, createProduct, updateProduct, deleteProduct, getUOMs, getProductUOMs, addProductUOM, updateProductUOM, deleteProductUOM } from '../api/api';
 import Button from '@mui/material/Button';
-import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Stack from '@mui/material/Stack';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import IconButton from '@mui/material/IconButton';
 import Select from 'react-select';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import Box from '@mui/material/Box';
+import { Plus } from 'lucide-react';
+import SchemaIcon from '@mui/icons-material/Schema';
+import Alert from '@mui/material/Alert';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
+import Paper from '@mui/material/Paper';
+import Draggable from 'react-draggable';
+
+function PaperComponent(props) {
+  const nodeRef = React.useRef(null);
+  return (
+    <Draggable
+      nodeRef={nodeRef}
+      handle="#draggable-dialog-title"
+      cancel={'[class*="MuiDialogContent-root"]'}
+    >
+      <Paper {...props} ref={nodeRef} />
+    </Draggable>
+  );
+}
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -23,6 +42,9 @@ const Products = () => {
   const [productUOMs, setProductUOMs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [tabValue, setTabValue] = useState(0);
+  const [alertShow, setAlertShow] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [errorDelMessage, setErrorDelMessage] = useState(null);
   const [formData, setFormData] = useState({
     name: '', name_mm: '', description: '', price: '', cost: '',
     category_id: '', sku: '', barcode: '', stock_quantity: '', image_url: '', base_uom_id: ''
@@ -30,6 +52,7 @@ const Products = () => {
   const [uomFormData, setUOMFormData] = useState({
     uom_id: '', is_base_uom: false, conversion_factor: 1, price: '', cost: '', barcode: ''
   });
+  const [loading, setLoading] = useState(true);
   const [isClearable, setIsClearable] = useState(true);
   const [isSearchable, setIsSearchable] = useState(true);
   useEffect(() => {
@@ -40,13 +63,16 @@ const Products = () => {
 
   const loadProducts = async () => {
     try {
+      setLoading(true);
       const res = await getProducts();
       setProducts(res.data.data);
     } catch (error) {
       console.error('Error loading products:', error);
+    } finally {
+      setErrorDelMessage(false);
+      setLoading(false); // Set loading to false after fetching (success or error)
     }
   };
-
   const loadCategories = async () => {
     try {
       const res = await getCategories();
@@ -82,37 +108,37 @@ const Products = () => {
 
   const handleAddProductUOM = async (e) => {
     e.preventDefault();
-    
+
     // Validate
     if (!uomFormData.uom_id) {
       alert('Please select a UOM');
       return;
     }
-    
+
     if (!uomFormData.conversion_factor || uomFormData.conversion_factor <= 0) {
       alert('Please enter a valid conversion factor');
       return;
     }
-    
+
     try {
       console.log('Adding product UOM:', {
         ...uomFormData,
         product_id: selectedProduct.id
       });
-      
+
       const response = await addProductUOM({
         ...uomFormData,
         product_id: selectedProduct.id
       });
-      
+
       console.log('UOM added successfully:', response);
-      
+
       // Reload UOMs
       await loadProductUOMs(selectedProduct.id);
-      
+
       // Reset form
       setUOMFormData({ uom_id: '', is_base_uom: false, conversion_factor: 1, price: '', cost: '', barcode: '' });
-      
+
       // Show success message
       alert('UOM added successfully! ✅');
     } catch (error) {
@@ -149,7 +175,12 @@ const Products = () => {
       });
       loadProducts();
     } catch (error) {
+      setAlertShow(true);
+      setErrorDelMessage(true);
       console.error('Error saving product:', error);
+      setErrorMessage(error.message)
+    } finally {
+      setLoading(false); // Set loading to false after fetching (success or error)
     }
   };
 
@@ -158,17 +189,25 @@ const Products = () => {
     setFormData(product);
     setShowModal(true);
   };
-
+  const [deleteID, setDeleteID] = useState();
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure?')) {
-      try {
-        await deleteProduct(id);
-        loadProducts();
-      } catch (error) {
-        console.error('Error deleting product:', error);
-      }
-    }
+    setDeleteID(id);
   };
+  const confrimDelete = () => {
+    setLoading(true);
+    try {
+      deleteProduct(deleteID);
+      loadProducts();
+      setOpen(false);
+    } catch (error) {
+      console.error('Error:', error);
+      setErrorDelMessage(true);
+      setOpen(false);
+      setErrorMessage(error.message)
+    } finally {
+      setLoading(false); // Set loading to false after fetching (success or error)
+    }
+  }
 
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -177,13 +216,12 @@ const Products = () => {
   );
 
   const columns = [
-    { field: 'id', headerName: 'ID', width: 90 },
-    { field: 'name', headerName: 'Product Name', width: 150 },
-    { field: 'name_mm', headerName: 'Product Myanmar Name', width: 200 },
-    { 
-      field: 'category', 
-      headerName: 'Category', 
-      width: 150,
+    { field: 'name', headerName: 'Product Name', width: 180 },
+    { field: 'name_mm', headerName: 'Product Myanmar Name', width: 230 },
+    {
+      field: 'category',
+      headerName: 'Category',
+      width: 180,
       valueGetter: (value, row) => row.categories?.name || ''
     },
     { field: 'price', headerName: 'Price', type: 'number', width: 120 },
@@ -191,24 +229,34 @@ const Products = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 200,
+      width: 250,
       sortable: false,
+      headerAlign: 'right', // Aligns header content to the right
       renderCell: (params) => (
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" justifyContent="flex-end" alignItems="center" spacing={1}>
+          <IconButton onClick={() => handleManageUOMs(params.row)} size="small" color="primary" title="Manage UOMs">
+            <SchemaIcon />
+          </IconButton>
           <IconButton onClick={() => handleEdit(params.row)} size="small">
             <EditIcon />
           </IconButton>
-          <IconButton onClick={() => handleManageUOMs(params.row)} size="small" color="primary" title="Manage UOMs">
-            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>UOM</span>
-          </IconButton>
-          <IconButton onClick={() => handleDelete(params.row.id)} size="small" color="error">
+          <IconButton
+            onClick={() => { handleClickOpen(); handleDelete(params.id); }}
+            size="small"
+          >
             <DeleteIcon />
           </IconButton>
         </Stack>
       ),
     },
   ];
-
+  const [open, setOpen] = useState(false);
+  const handleClickOpen = () => {
+    setOpen(true);
+  };
+  const handleClose = () => {
+    setOpen(false);
+  };
   return (
     <div className="page">
       <div className="page-header">
@@ -217,22 +265,15 @@ const Products = () => {
       </div>
 
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <div style={{ position: 'relative', width: '300px' }}>
-            {/* <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#999' }} />
-            <input
-              type="text"
-              className="input"
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ paddingLeft: '40px' }}
-            /> */}
-          </div>
-          <Button variant="contained" onClick={() => { setShowModal(true); setEditingProduct(null); }} startIcon={<AddIcon />}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+          <button className="btn btn-primary" onClick={() => { setShowModal(true); setEditingProduct(null); }}>
+            <Plus size={18} style={{ marginRight: '8px', display: 'inline' }} />
             Add Product
-          </Button>
+          </button>
         </div>
+        {errorDelMessage && (
+          <Alert severity="error">{errorMessage}</Alert>
+        )}
         <DataGrid
           rows={filteredProducts}
           columns={columns}
@@ -240,54 +281,22 @@ const Products = () => {
           initialState={{
             pagination: { paginationModel: { pageSize: 10 } },
           }}
+          loading={loading}
           pageSizeOptions={[10, 25, 50]}
           autoHeight
         />
-        {/* <table className="table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Myanmar Name</th>
-              <th>Category</th>
-              <th>Price</th>
-              <th>Stock</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredProducts.map((product) => (
-              <tr key={product.id}>
-                <td>{product.name}</td>
-                <td>{product.name_mm}</td>
-                <td>{product.categories?.name}</td>
-                <td>{product.price} Ks</td>
-                <td>
-                  <span className={`badge ${product.stock_quantity <= 10 ? 'badge-warning' : 'badge-success'}`}>
-                    {product.stock_quantity}
-                  </span>
-                </td>
-                <td>
-                  <button className="btn btn-secondary" style={{ marginRight: '8px', padding: '6px 12px' }} onClick={() => handleEdit(product)}>
-                    <Edit size={16} />
-                  </button>
-                  <button className="btn btn-danger" style={{ padding: '6px 12px' }} onClick={() => handleDelete(product.id)}>
-                    <Trash2 size={16} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table> */}
       </div>
-
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">{editingProduct ? 'Edit Product' : 'Add Product'}</h2>
             </div>
+            {alertShow && (
+              <Alert severity="error">{errorMessage}</Alert>
+            )}
             <form onSubmit={handleSubmit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '20px' }}>
                 <div className="form-group">
                   <label className="form-label">Name</label>
                   <input className="input" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
@@ -341,7 +350,14 @@ const Products = () => {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="button" className="btn btn-secondary" onClick={() => {
+                  setShowModal(false);
+                  setFormData({
+                    name: '', name_mm: '', description: '', price: '', cost: '',
+                    category_id: '', sku: '', barcode: '', stock_quantity: '', image_url: ''
+                  });
+                  setAlertShow(false);
+                }}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Save</button>
               </div>
             </form>
@@ -356,7 +372,7 @@ const Products = () => {
             <div className="modal-header">
               <h2 className="modal-title">Manage UOMs - {selectedProduct.name}</h2>
             </div>
-            
+
             <div style={{ marginBottom: '20px' }}>
               <h3 style={{ marginBottom: '10px' }}>Add New UOM</h3>
               <form onSubmit={handleAddProductUOM}>
@@ -373,31 +389,31 @@ const Products = () => {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Factor *</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       step="0.0001"
-                      className="input" 
-                      value={uomFormData.conversion_factor} 
-                      onChange={(e) => setUOMFormData({ ...uomFormData, conversion_factor: e.target.value })} 
+                      className="input"
+                      value={uomFormData.conversion_factor}
+                      onChange={(e) => setUOMFormData({ ...uomFormData, conversion_factor: e.target.value })}
                       placeholder="1"
                       required
                     />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Price</label>
-                    <input 
-                      type="number" 
-                      className="input" 
-                      value={uomFormData.price} 
-                      onChange={(e) => setUOMFormData({ ...uomFormData, price: e.target.value })} 
+                    <input
+                      type="number"
+                      className="input"
+                      value={uomFormData.price}
+                      onChange={(e) => setUOMFormData({ ...uomFormData, price: e.target.value })}
                       placeholder="Optional"
                     />
                   </div>
                   <div className="form-group">
-                    <Button 
-                      type="submit" 
-                      variant="contained" 
-                      size="small" 
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      size="small"
                       fullWidth
                       disabled={!uomFormData.uom_id || !uomFormData.conversion_factor}
                     >
@@ -407,10 +423,10 @@ const Products = () => {
                 </div>
                 <div className="form-group" style={{ marginTop: '10px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={uomFormData.is_base_uom} 
-                      onChange={(e) => setUOMFormData({ ...uomFormData, is_base_uom: e.target.checked })} 
+                    <input
+                      type="checkbox"
+                      checked={uomFormData.is_base_uom}
+                      onChange={(e) => setUOMFormData({ ...uomFormData, is_base_uom: e.target.checked })}
                     />
                     <span>Set as Base UOM (for stock tracking)</span>
                   </label>
@@ -455,10 +471,10 @@ const Products = () => {
                   </tbody>
                 </table>
               ) : (
-                <div style={{ 
-                  padding: '40px', 
-                  textAlign: 'center', 
-                  background: '#f9fafb', 
+                <div style={{
+                  padding: '40px',
+                  textAlign: 'center',
+                  background: '#f9fafb',
                   borderRadius: '8px',
                   border: '2px dashed #e5e7eb'
                 }}>
@@ -480,6 +496,27 @@ const Products = () => {
           </div>
         </div>
       )}
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        PaperComponent={PaperComponent}
+        aria-labelledby="draggable-dialog-title"
+      >
+        <DialogTitle style={{ cursor: 'move' }} id="draggable-dialog-title">
+          Delete?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Do you want to delete this record?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button autoFocus onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button onClick={confrimDelete}>Confirm</Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
