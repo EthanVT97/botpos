@@ -24,8 +24,9 @@ router.post('/', verifyViberWebhook, (req, res) => {
   }
 });
 
-// Handle Viber messages
-viberBot.on('message', async (message) => {
+// Handle Viber messages (only if bot is configured)
+if (isViberAvailable()) {
+  viberBot.on('message', async (message) => {
   try {
     // Validate message structure
     if (!message || !message.userProfile || !message.text) {
@@ -77,7 +78,8 @@ viberBot.on('message', async (message) => {
   } catch (error) {
     console.error('Viber error:', error);
   }
-});
+  });
+}
 
 async function handleViberCommand(message, customer) {
   const command = message.text.split(' ')[0];
