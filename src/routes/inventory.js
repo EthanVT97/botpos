@@ -5,14 +5,21 @@ const { pool, query, supabase } = require('../config/database');
 // Get all inventory movements
 router.get('/movements', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('inventory_movements')
-      .select('*, products(name, name_mm)')
-      .order('created_at', { ascending: false });
+    const result = await query(`
+      SELECT 
+        im.*,
+        json_build_object(
+          'name', p.name,
+          'name_mm', p.name_mm
+        ) as products
+      FROM inventory_movements im
+      LEFT JOIN products p ON im.product_id = p.id
+      ORDER BY im.created_at DESC
+    `);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
+    console.error('Error fetching inventory movements:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -23,13 +30,13 @@ router.post('/movements', async (req, res) => {
     const { product_id, quantity, type, notes } = req.body;
     
     // Create movement record
-    const { data: movement, error: movementError } = await supabase
-      .from('inventory_movements')
-      .insert([{ product_id, quantity, type, notes }])
-      .select()
-      .single();
+    const movementResult = await query(`
+      INSERT INTO inventory_movements (product_id, quantity, type, notes)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [product_id, quantity, type, notes]);
 
-    if (movementError) throw movementError;
+    const movement = movementResult.rows[0];
 
     // Update product stock
     let quantityChange = 0;
@@ -41,15 +48,16 @@ router.post('/movements', async (req, res) => {
       quantityChange = quantity;
     }
 
-    const { error: stockError } = await supabase.rpc('update_product_stock', {
-      product_id,
-      quantity_change: quantityChange
-    });
-
-    if (stockError) throw stockError;
+    await query(`
+      UPDATE products
+      SET stock_quantity = stock_quantity + $1,
+          updated_at = NOW()
+      WHERE id = $2
+    `, [quantityChange, product_id]);
 
     res.json({ success: true, data: movement });
   } catch (error) {
+    console.error('Error adding inventory movement:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -59,15 +67,16 @@ router.get('/low-stock', async (req, res) => {
   try {
     const threshold = req.query.threshold || 10;
     
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .lte('stock_quantity', threshold)
-      .order('stock_quantity', { ascending: true });
+    const result = await query(`
+      SELECT *
+      FROM products
+      WHERE stock_quantity <= $1
+      ORDER BY stock_quantity ASC
+    `, [parseInt(threshold)]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
+    console.error('Error fetching low stock products:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
