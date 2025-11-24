@@ -2,6 +2,7 @@
   "name": "myanmar-pos-client",
   "version": "1.0.0",
   "private": true,
+  "homepage": "https://myanmar-pos-frontend.onrender.com",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -35,6 +36,12 @@
   },
   "devDependencies": {
     "react-scripts": "5.0.1"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
   },
   "browserslist": {
     "production": [
