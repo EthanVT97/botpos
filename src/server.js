@@ -162,17 +162,42 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Manual webhook registration endpoint
+app.post('/api/webhooks/register', async (req, res) => {
+  try {
+    const { autoRegisterWebhooks } = require('./utils/webhookSetup');
+    await autoRegisterWebhooks();
+    res.json({ 
+      success: true, 
+      message: 'Webhook registration triggered' 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Error handling
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 Bot webhooks ready`);
   console.log(`🔌 Socket.IO server active on /socket.io/`);
   console.log(`🔌 Native WebSocket server active on /ws`);
   console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+  
+  // Auto-register webhooks if configured
+  if (process.env.NODE_ENV === 'production' || process.env.AUTO_REGISTER_WEBHOOKS === 'true') {
+    const { autoRegisterWebhooks } = require('./utils/webhookSetup');
+    setTimeout(() => {
+      autoRegisterWebhooks();
+    }, 3000); // Wait 3 seconds for server to be fully ready
+  }
 });
 
 module.exports = { app, server, io };
