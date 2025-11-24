@@ -1,4 +1,4 @@
-const { supabase } = require('../config/supabase');
+const { pool, query } = require('../config/database');
 const { telegramBot } = require('../config/bots');
 const axios = require('axios');
 

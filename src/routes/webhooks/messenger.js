@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const { pool, query } = require('../../config/supabase');
+const { pool, query } = require('../../config/database');
 const { emitNewMessage, emitSessionUpdate, emitUnreadCountUpdate } = require('../../config/socket');
 const flowExecutor = require('../../utils/flowExecutor');
 const { verifyMessengerWebhook } = require('../../middleware/webhookVerification');

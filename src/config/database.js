@@ -281,9 +281,13 @@ const db = {
   })
 };
 
+// Export supabase as an alias for db for backward compatibility
+const supabase = db;
+
 module.exports = {
   pool,
   query,
   getClient,
-  db
+  db,
+  supabase
 };

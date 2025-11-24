@@ -1,5 +1,4 @@
 const { Server } = require('socket.io');
-const { supabase } = require('./supabase');
 
 let io;
 

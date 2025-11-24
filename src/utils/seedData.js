@@ -1,4 +1,4 @@
-const { supabase } = require('../config/supabase');
+const { pool, query } = require('../config/database');
 
 async function seedDatabase() {
   console.log('🌱 Starting database seeding...');

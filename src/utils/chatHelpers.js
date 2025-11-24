@@ -1,4 +1,4 @@
-const { supabase } = require('../config/supabase');
+const { pool, query } = require('../config/database');
 const { emitNewMessage, emitSessionUpdate, emitUnreadCountUpdate } = require('../config/socket');
 
 /**
