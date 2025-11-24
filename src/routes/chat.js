@@ -257,7 +257,7 @@ router.get('/unread-count', async (req, res) => {
 
     if (error) throw error;
 
-    const totalUnread = data.reduce((sum, session) => sum + (session.unread_count || 0), 0);
+    const totalUnread = (data || []).reduce((sum, session) => sum + (session.unread_count || 0), 0);
 
     res.json({ success: true, data: { total: totalUnread } });
   } catch (error) {

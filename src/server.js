@@ -10,6 +10,9 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy - required for Render and other reverse proxies
+app.set('trust proxy', 1);
+
 // Initialize Socket.IO
 const { initializeSocket } = require('./config/socket');
 const io = initializeSocket(server);
