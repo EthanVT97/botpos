@@ -1,4 +1,4 @@
-const { pool, query } = require('../config/database');
+const { pool, query, supabase } = require('../config/database');
 
 async function seedDatabase() {
   console.log('🌱 Starting database seeding...');

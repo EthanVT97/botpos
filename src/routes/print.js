@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const PDFDocument = require('pdfkit');
-const { pool, query } = require('../config/database');
+const { pool, query, supabase } = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 
 // All print routes require authentication

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { pool, query } = require('../config/database');
+const { pool, query, supabase } = require('../config/database');
 const {
   generateAccessToken,
   generateRefreshToken,

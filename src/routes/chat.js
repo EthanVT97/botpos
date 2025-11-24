@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { pool, query } = require('../config/database');
+const { pool, query, supabase } = require('../config/database');
 const { telegramBot, viberBot, ViberMessage } = require('../config/bots');
 const { emitNewMessage, emitMessageRead, emitUnreadCountUpdate, emitSessionUpdate } = require('../config/socket');
 const { chatValidation } = require('../middleware/validator');

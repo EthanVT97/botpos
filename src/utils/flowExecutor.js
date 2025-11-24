@@ -1,4 +1,4 @@
-const { pool, query } = require('../config/database');
+const { pool, query, supabase } = require('../config/database');
 const { telegramBot } = require('../config/bots');
 const axios = require('axios');
 

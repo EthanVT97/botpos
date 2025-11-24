@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { pool, query } = require('../config/database');
+const { pool, query, supabase } = require('../config/database');
 
 // Get all inventory movements
 router.get('/movements', async (req, res) => {

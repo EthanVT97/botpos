@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { pool, query } = require('../config/database');
+const { pool, query, supabase } = require('../config/database');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '24h';
