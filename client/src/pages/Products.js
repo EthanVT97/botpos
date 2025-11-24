@@ -64,21 +64,42 @@ const Products = () => {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const res = await getProducts();
-      setProducts(res.data.data);
-    } catch (error) {
-      console.error('Error loading products:', error);
-    } finally {
       setErrorDelMessage(false);
-      setLoading(false); // Set loading to false after fetching (success or error)
+      const res = await getProducts();
+      
+      console.log('Products loaded:', {
+        count: res.data.data?.length || 0,
+        timestamp: new Date().toISOString()
+      });
+      
+      setProducts(res.data.data || []);
+    } catch (error) {
+      console.error('Error loading products:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        timestamp: new Date().toISOString()
+      });
+      
+      setProducts([]);
+      setErrorMessage(error.response?.data?.error || error.message || 'Failed to load products');
+      setErrorDelMessage(true);
+    } finally {
+      setLoading(false);
     }
   };
   const loadCategories = async () => {
     try {
       const res = await getCategories();
-      setCategories(res.data.data);
+      setCategories(res.data.data || []);
+      console.log('Categories loaded:', res.data.data?.length || 0);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error('Error loading categories:', {
+        error: error.message,
+        response: error.response?.data,
+        timestamp: new Date().toISOString()
+      });
+      setCategories([]);
     }
   };
 
@@ -86,8 +107,14 @@ const Products = () => {
     try {
       const res = await getUOMs();
       setUOMs(res.data.data || []);
+      console.log('UOMs loaded:', res.data.data?.length || 0);
     } catch (error) {
-      console.error('Error loading UOMs:', error);
+      console.error('Error loading UOMs:', {
+        error: error.message,
+        response: error.response?.data,
+        timestamp: new Date().toISOString()
+      });
+      setUOMs([]);
     }
   };
 
@@ -95,8 +122,15 @@ const Products = () => {
     try {
       const res = await getProductUOMs(productId);
       setProductUOMs(res.data.data || []);
+      console.log('Product UOMs loaded for product', productId, ':', res.data.data?.length || 0);
     } catch (error) {
-      console.error('Error loading product UOMs:', error);
+      console.error('Error loading product UOMs:', {
+        productId,
+        error: error.message,
+        response: error.response?.data,
+        timestamp: new Date().toISOString()
+      });
+      setProductUOMs([]);
     }
   };
 

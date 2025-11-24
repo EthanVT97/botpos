@@ -43,11 +43,106 @@ const Analytics = () => {
 
   const exportData = async (type) => {
     try {
-      // TODO: Implement export functionality
-      alert(`Export as ${type} - Coming soon!`);
+      // Prepare export data
+      const exportPayload = {
+        dateRange,
+        data: dashboardData,
+        format: type,
+        timestamp: new Date().toISOString()
+      };
+
+      if (type === 'pdf') {
+        // Export as PDF
+        const response = await api.post('/analytics/export/pdf', exportPayload, {
+          responseType: 'blob'
+        });
+        
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `analytics-report-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        alert('PDF exported successfully!');
+      } else if (type === 'excel') {
+        // Export as Excel
+        const response = await api.post('/analytics/export/excel', exportPayload, {
+          responseType: 'blob'
+        });
+        
+        const blob = new Blob([response.data], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `analytics-report-${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        alert('Excel exported successfully!');
+      } else if (type === 'csv') {
+        // Export as CSV (client-side generation)
+        const csvData = generateCSV(dashboardData);
+        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `analytics-report-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        alert('CSV exported successfully!');
+      }
     } catch (error) {
       console.error('Export error:', error);
+      alert('Failed to export data. Please try again.');
     }
+  };
+
+  const generateCSV = (data) => {
+    if (!data) return '';
+
+    const rows = [];
+    
+    // Header
+    rows.push(['Metric', 'Value']);
+    
+    // Summary data
+    if (data.summary) {
+      rows.push(['Total Sales', data.summary.total_sales || 0]);
+      rows.push(['Total Orders', data.summary.total_orders || 0]);
+      rows.push(['Average Order Value', data.summary.avg_order_value || 0]);
+      rows.push(['Total Customers', data.summary.total_customers || 0]);
+    }
+    
+    rows.push([]); // Empty row
+    
+    // Top products
+    if (data.topProducts && data.topProducts.length > 0) {
+      rows.push(['Top Products']);
+      rows.push(['Product', 'Quantity Sold', 'Revenue']);
+      data.topProducts.forEach(product => {
+        rows.push([
+          product.name || '',
+          product.quantity || 0,
+          product.revenue || 0
+        ]);
+      });
+    }
+    
+    // Convert to CSV string
+    return rows.map(row => 
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
   };
 
   if (loading) {

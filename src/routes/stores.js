@@ -5,16 +5,22 @@ const { pool, query, supabase } = require('../config/database');
 // Get all stores
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('stores')
-      .select(`
-        *,
-        users!stores_manager_id_fkey(id, full_name, email)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    res.json({ success: true, data });
+    const result = await pool.query(`
+      SELECT 
+        s.*,
+        u.id as manager_id,
+        u.full_name as manager_name,
+        u.email as manager_email,
+        COUNT(DISTINCT si.product_id) as product_count,
+        SUM(si.quantity) as total_inventory
+      FROM stores s
+      LEFT JOIN users u ON s.manager_id = u.id
+      LEFT JOIN store_inventory si ON s.id = si.store_id
+      GROUP BY s.id, u.id, u.full_name, u.email
+      ORDER BY s.created_at DESC
+    `);
+    
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching stores:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -24,17 +30,26 @@ router.get('/', async (req, res) => {
 // Get store by ID
 router.get('/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('stores')
-      .select(`
-        *,
-        users!stores_manager_id_fkey(id, full_name, email)
-      `)
-      .eq('id', req.params.id)
-      .single();
-
-    if (error) throw error;
-    res.json({ success: true, data });
+    const result = await pool.query(`
+      SELECT 
+        s.*,
+        u.id as manager_id,
+        u.full_name as manager_name,
+        u.email as manager_email,
+        COUNT(DISTINCT si.product_id) as product_count,
+        SUM(si.quantity) as total_inventory
+      FROM stores s
+      LEFT JOIN users u ON s.manager_id = u.id
+      LEFT JOIN store_inventory si ON s.id = si.store_id
+      WHERE s.id = $1
+      GROUP BY s.id, u.id, u.full_name, u.email
+    `, [req.params.id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Store not found' });
+    }
+    
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Error fetching store:', error);
     res.status(500).json({ success: false, error: error.message });

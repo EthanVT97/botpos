@@ -420,16 +420,24 @@ router.post('/forgot-password',
         { expiresIn: '1h' }
       );
 
-      // TODO: Send email with reset link
-      // For now, just log it
-      console.log(`Password reset token for ${email}: ${resetToken}`);
-      console.log(`Reset link: ${process.env.CLIENT_URL}/reset-password?token=${resetToken}`);
+      // Send password reset email
+      const emailService = require('../services/emailService');
+      const emailResult = await emailService.sendPasswordResetEmail(email, resetToken);
+
+      if (!emailResult.success) {
+        console.error('Failed to send reset email:', emailResult.error);
+        // Still return success to prevent email enumeration
+        // But log the error for debugging
+      }
 
       res.json({
         success: true,
         message: 'If the email exists, a password reset link has been sent',
-        // Remove this in production
-        ...(process.env.NODE_ENV === 'development' && { resetToken })
+        // Include token in development for testing
+        ...(process.env.NODE_ENV === 'development' && { 
+          resetToken,
+          resetLink: `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`
+        })
       });
     } catch (error) {
       console.error('Forgot password error:', error);

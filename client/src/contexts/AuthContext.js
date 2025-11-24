@@ -26,10 +26,13 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem('accessToken');
       
       if (!token) {
+        console.log('No access token found, user not authenticated');
         setLoading(false);
         return;
       }
 
+      console.log('Checking authentication with token...');
+      
       // Set token in axios headers
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
@@ -37,16 +40,28 @@ export const AuthProvider = ({ children }) => {
       const response = await api.get('/auth/me');
       
       if (response.data.success) {
+        console.log('Authentication successful:', {
+          user: response.data.data.user.email,
+          role: response.data.data.user.role,
+          permissions: Object.keys(response.data.data.user.permissions || {}),
+          timestamp: new Date().toISOString()
+        });
         setUser(response.data.data.user);
         setPermissions(response.data.data.user.permissions || {});
       } else {
+        console.warn('Authentication failed, clearing tokens');
         // Token invalid, clear it
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         delete api.defaults.headers.common['Authorization'];
       }
     } catch (error) {
-      console.error('Auth check error:', error);
+      console.error('Auth check error:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        timestamp: new Date().toISOString()
+      });
       // Try to refresh token
       await refreshToken();
     } finally {
@@ -203,48 +218,76 @@ export const AuthProvider = ({ children }) => {
   };
 
   const hasPermission = (resource, action) => {
-    if (!permissions || !user) return false;
+    if (!permissions || !user) {
+      console.log('Permission check failed: No user or permissions', { resource, action });
+      return false;
+    }
     
     // Admin has all permissions
-    if (permissions.all === true) return true;
+    if (permissions.all === true) {
+      console.log('Permission granted: Admin has all permissions', { resource, action });
+      return true;
+    }
     
     // Check specific permission
     const resourcePermissions = permissions[resource];
     
-    if (!resourcePermissions) return false;
+    if (!resourcePermissions) {
+      console.log('Permission denied: Resource not found', { resource, action, user: user.email });
+      return false;
+    }
     
     // If resourcePermissions is boolean
     if (typeof resourcePermissions === 'boolean') {
+      console.log('Permission check:', { resource, action, granted: resourcePermissions, user: user.email });
       return resourcePermissions;
     }
     
     // If resourcePermissions is object with actions
     if (typeof resourcePermissions === 'object') {
-      return resourcePermissions[action] === true;
+      const granted = resourcePermissions[action] === true;
+      console.log('Permission check:', { resource, action, granted, user: user.email });
+      return granted;
     }
     
     return false;
   };
 
   const canAccess = (resource) => {
-    if (!permissions || !user) return false;
+    if (!permissions || !user) {
+      console.log('Access check failed: No user or permissions', { resource });
+      return false;
+    }
     
     // Admin has all permissions
-    if (permissions.all === true) return true;
+    if (permissions.all === true) {
+      console.log('Access granted: Admin has all permissions', { resource });
+      return true;
+    }
     
     // Check if resource exists in permissions
     const resourcePermissions = permissions[resource];
     
-    if (!resourcePermissions) return false;
+    if (!resourcePermissions) {
+      console.log('Access denied: Resource not found in permissions', { 
+        resource, 
+        user: user.email,
+        availableResources: Object.keys(permissions)
+      });
+      return false;
+    }
     
     // If boolean, return it
     if (typeof resourcePermissions === 'boolean') {
+      console.log('Access check:', { resource, granted: resourcePermissions, user: user.email });
       return resourcePermissions;
     }
     
     // If object, check if any action is allowed
     if (typeof resourcePermissions === 'object') {
-      return Object.values(resourcePermissions).some(val => val === true);
+      const granted = Object.values(resourcePermissions).some(val => val === true);
+      console.log('Access check:', { resource, granted, user: user.email });
+      return granted;
     }
     
     return false;

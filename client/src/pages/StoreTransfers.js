@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, ArrowRight, Check, X, Clock, Package, AlertCircle } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../api/api';
 import './StoreTransfers.css';
 
 const StoreTransfers = () => {
+  const { user } = useAuth();
   const [transfers, setTransfers] = useState([]);
   const [stores, setStores] = useState([]);
   const [products, setProducts] = useState([]);
@@ -54,7 +56,7 @@ const StoreTransfers = () => {
     try {
       await api.post('/store-transfers', {
         ...formData,
-        requested_by: 'current-user-id' // TODO: Get from auth context
+        requested_by: user?.id
       });
       setShowModal(false);
       resetForm();
@@ -105,7 +107,7 @@ const StoreTransfers = () => {
 
     try {
       await api.post(`/store-transfers/${transferId}/approve`, {
-        approved_by: 'current-user-id' // TODO: Get from auth context
+        approved_by: user?.id
       });
       loadData();
     } catch (error) {

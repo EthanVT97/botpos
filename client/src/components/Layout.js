@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingCart, Package, Users, 
-  ShoppingBag, Warehouse, BarChart3, Settings, Menu, X, Store, ArrowLeftRight
+  ShoppingBag, Warehouse, BarChart3, Settings, Menu, X, Store, ArrowLeftRight, MessageCircle
 } from 'lucide-react';
 import './Layout.css';
 
@@ -32,6 +32,7 @@ const Layout = ({ children }) => {
   const menuItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', labelMm: 'ပင်မစာမျက်နှာ' },
     { path: '/pos', icon: ShoppingCart, label: 'POS', labelMm: 'ရောင်းချရန်' },
+    { path: '/messages', icon: MessageCircle, label: 'Messages', labelMm: 'မက်ဆေ့ခ်ျများ' },
     { path: '/analytics', icon: BarChart3, label: 'Analytics', labelMm: 'ခွဲခြမ်းစိတ်ဖြာမှု' },
     { path: '/products', icon: Package, label: 'Products', labelMm: 'ကုန်ပစ္စည်းများ' },
     { path: '/sellingprice', icon: ShoppingBag, label: 'Selling Price', labelMm: 'ရောင်းဈေး' },

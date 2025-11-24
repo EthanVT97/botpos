@@ -9,17 +9,17 @@ const api = axios.create({
   },
 });
 
-// Request interceptor for adding auth tokens if needed
+// Request interceptor for adding auth tokens
 api.interceptors.request.use(
   (config) => {
-    // Add auth token here if needed
-    // const token = localStorage.getItem('token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
+    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -30,13 +30,29 @@ api.interceptors.response.use(
   (error) => {
     if (error.response) {
       // Server responded with error status
-      console.error('API Error:', error.response.data);
+      console.error('API Error:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        url: error.config?.url,
+        method: error.config?.method,
+        data: error.response.data,
+        timestamp: new Date().toISOString()
+      });
     } else if (error.request) {
       // Request made but no response
-      console.error('Network Error:', error.message);
+      console.error('Network Error:', {
+        message: error.message,
+        url: error.config?.url,
+        method: error.config?.method,
+        timestamp: new Date().toISOString()
+      });
     } else {
       // Something else happened
-      console.error('Error:', error.message);
+      console.error('Error:', {
+        message: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
     }
     return Promise.reject(error);
   }

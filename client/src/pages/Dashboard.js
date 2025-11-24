@@ -1,23 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, ShoppingCart, Users, Package, MessageCircle } from 'lucide-react';
-import { getSalesSummary, getTopProducts, getLowStock, getUnreadCount } from '../api/api';
-import Chat from '../components/ChatRealtime';
-import api from '../api/client';
+import { TrendingUp, ShoppingCart, Users, Package } from 'lucide-react';
+import { getSalesSummary, getTopProducts, getLowStock } from '../api/api';
 
 const Dashboard = () => {
   const [summary, setSummary] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
   const [lowStock, setLowStock] = useState([]);
-  const [unreadMessages, setUnreadMessages] = useState(0);
-  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
-    loadUnreadMessages();
-    
-    // Poll for unread messages every 5 seconds
-    const interval = setInterval(loadUnreadMessages, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   const loadDashboardData = async () => {
@@ -27,24 +18,29 @@ const Dashboard = () => {
         getTopProducts(5),
         getLowStock()
       ]);
+      
+      console.log('Dashboard data loaded:', {
+        summary: summaryRes.data?.data,
+        topProducts: topRes.data?.data,
+        lowStock: stockRes.data?.data,
+        timestamp: new Date().toISOString()
+      });
+      
       setSummary(summaryRes.data?.data || null);
       setTopProducts(topRes.data?.data || []);
       setLowStock(stockRes.data?.data || []);
     } catch (error) {
-      console.error('Error loading dashboard:', error);
-      // Don't show alert for dashboard - just log the error
-    }
-  };
-
-  const loadUnreadMessages = async () => {
-    try {
-      const response = await getUnreadCount();
-      if (response.data?.success) {
-        setUnreadMessages(response.data.data?.total || 0);
-      }
-    } catch (error) {
-      console.error('Error loading unread messages:', error);
-      // Silent fail for unread count
+      console.error('Error loading dashboard data:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Set empty states on error
+      setSummary({ total_sales: 0, order_count: 0 });
+      setTopProducts([]);
+      setLowStock([]);
     }
   };
 
@@ -69,14 +65,6 @@ const Dashboard = () => {
       value: lowStock.length, 
       icon: Package, 
       color: '#f59e0b' 
-    },
-    { 
-      title: 'Messages', 
-      titleMm: 'မက်ဆေ့ခ်ျများ',
-      value: unreadMessages, 
-      icon: MessageCircle, 
-      color: '#8b5cf6',
-      onClick: () => setShowChat(!showChat)
     },
   ];
 
@@ -122,29 +110,9 @@ const Dashboard = () => {
                 background: `${stat.color}20`,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative'
+                justifyContent: 'center'
               }}>
                 <Icon size={28} color={stat.color} />
-                {stat.title === 'Messages' && unreadMessages > 0 && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '-4px',
-                    right: '-4px',
-                    background: '#ef4444',
-                    color: 'white',
-                    borderRadius: '50%',
-                    width: '24px',
-                    height: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    fontWeight: '600'
-                  }}>
-                    {unreadMessages}
-                  </span>
-                )}
               </div>
               <div>
                 <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
@@ -160,12 +128,6 @@ const Dashboard = () => {
           );
         })}
       </div>
-
-      {showChat && (
-        <div style={{ marginBottom: '24px' }}>
-          <Chat api={api} />
-        </div>
-      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         <div className="card">

@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { RealtimeProvider } from './contexts/RealtimeContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
@@ -22,14 +24,17 @@ import UOM from './pages/UOM';
 import SellingPrice from './pages/SellingPrice';
 import Stores from './pages/Stores';
 import StoreTransfers from './pages/StoreTransfers';
+import Messages from './pages/Messages';
 import NotFound from './pages/NotFound';
 import './App.css';
 
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <Router>
+      <NotificationProvider>
+        <AuthProvider>
+          <RealtimeProvider>
+            <Router>
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
@@ -116,12 +121,19 @@ function App() {
                 <Layout><StoreTransfers /></Layout>
               </PrivateRoute>
             } />
+            <Route path="/messages" element={
+              <PrivateRoute requiredPermission="dashboard">
+                <Layout><Messages /></Layout>
+              </PrivateRoute>
+            } />
             
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </Router>
-      </AuthProvider>
+            </Router>
+          </RealtimeProvider>
+        </AuthProvider>
+      </NotificationProvider>
     </ErrorBoundary>
   );
 }
