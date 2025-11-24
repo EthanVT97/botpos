@@ -359,8 +359,8 @@ router.get('/dashboard', async (req, res) => {
         COALESCE(SUM(total_amount), 0) as total_sales,
         COUNT(*) as total_orders,
         COALESCE(AVG(total_amount), 0) as avg_order_value,
-        COALESCE(SUM(total_amount - COALESCE(discount_amount, 0)), 0) as total_profit,
-        COALESCE(SUM(discount_amount), 0) as total_discount,
+        COALESCE(SUM(total_amount - COALESCE(discount, 0)), 0) as total_profit,
+        COALESCE(SUM(discount), 0) as total_discount,
         COUNT(DISTINCT customer_id) as unique_customers
       FROM orders
       WHERE status = 'completed'
