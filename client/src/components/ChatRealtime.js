@@ -17,24 +17,62 @@ const ChatRealtime = ({ api }) => {
 
   // Initialize Socket.IO connection
   useEffect(() => {
-    const socket = io(process.env.REACT_APP_API_URL || 'http://localhost:3001', {
+    // Get the base URL without /api suffix
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    const baseUrl = apiUrl.replace('/api', '');
+    
+    const socket = io(baseUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 5
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: Infinity,
+      timeout: 20000,
+      path: '/socket.io/',
+      // Upgrade to WebSocket as soon as possible
+      upgrade: true,
+      // Force WebSocket in production
+      forceNew: false,
+      // Add query params for debugging
+      query: {
+        client: 'chat-realtime'
+      }
     });
 
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('✅ Socket connected');
+      console.log('✅ Socket connected:', socket.id);
+      console.log('Transport:', socket.io.engine.transport.name);
       setConnected(true);
       socket.emit('join:admin');
     });
 
-    socket.on('disconnect', () => {
-      console.log('❌ Socket disconnected');
+    socket.on('disconnect', (reason) => {
+      console.log('❌ Socket disconnected:', reason);
       setConnected(false);
+    });
+
+    // Handle ping from server
+    socket.on('ping', () => {
+      socket.emit('pong');
+    });
+
+    // Handle connection errors
+    socket.on('connect_error', (error) => {
+      console.error('Connection error:', error.message);
+      setConnected(false);
+    });
+
+    // Handle reconnection
+    socket.on('reconnect', (attemptNumber) => {
+      console.log('🔄 Reconnected after', attemptNumber, 'attempts');
+      setConnected(true);
+      socket.emit('join:admin');
+    });
+
+    socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('🔄 Reconnection attempt:', attemptNumber);
     });
 
     // Listen for new messages

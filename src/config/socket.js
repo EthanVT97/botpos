@@ -6,18 +6,52 @@ let io;
  * Initialize Socket.IO server
  */
 function initializeSocket(server) {
+  // Determine if we're in production
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Configure allowed origins
+  const allowedOrigins = [
+    process.env.CLIENT_URL,
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ].filter(Boolean);
+
   io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:3000',
+      origin: allowedOrigins,
       methods: ['GET', 'POST'],
       credentials: true
     },
+    // Production-optimized settings for Render
+    transports: ['websocket', 'polling'],
     pingTimeout: 60000,
-    pingInterval: 25000
+    pingInterval: 25000,
+    upgradeTimeout: 30000,
+    maxHttpBufferSize: 1e6,
+    // Allow long polling fallback
+    allowEIO3: true,
+    // Path for WebSocket connections
+    path: '/socket.io/'
   });
 
+  // Heartbeat mechanism for production (required by Render)
+  if (isProduction) {
+    setInterval(() => {
+      io.sockets.sockets.forEach((socket) => {
+        if (socket.connected) {
+          socket.emit('ping');
+        }
+      });
+    }, 30000); // Every 30 seconds
+  }
+
   io.on('connection', (socket) => {
-    console.log(`✅ Client connected: ${socket.id}`);
+    console.log(`✅ Client connected: ${socket.id} (Transport: ${socket.conn.transport.name})`);
+
+    // Handle pong response
+    socket.on('pong', () => {
+      // Client is alive
+    });
 
     // Join customer room for private messages
     socket.on('join:customer', (customerId) => {
@@ -32,8 +66,13 @@ function initializeSocket(server) {
     });
 
     // Handle disconnect
-    socket.on('disconnect', () => {
-      console.log(`❌ Client disconnected: ${socket.id}`);
+    socket.on('disconnect', (reason) => {
+      console.log(`❌ Client disconnected: ${socket.id} (Reason: ${reason})`);
+    });
+
+    // Handle connection errors
+    socket.on('error', (error) => {
+      console.error(`Socket error for ${socket.id}:`, error);
     });
   });
 
