@@ -5,14 +5,13 @@ const { pool, query, supabase } = require('../config/database');
 // Get all UOMs
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('uom')
-      .select('*')
-      .eq('is_active', true)
-      .order('name', { ascending: true });
+    const result = await query(`
+      SELECT * FROM uom
+      WHERE is_active = true
+      ORDER BY name ASC
+    `);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -21,13 +20,9 @@ router.get('/', async (req, res) => {
 // Get UOM by ID
 router.get('/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('uom')
-      .select('*')
-      .eq('id', req.params.id)
-      .single();
+    const result = await query('SELECT * FROM uom WHERE id = $1', [req.params.id]);
+    const data = result.rows[0] || null;
 
-    if (error) throw error;
     res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -39,14 +34,13 @@ router.post('/', async (req, res) => {
   try {
     const { code, name, name_mm, description } = req.body;
     
-    const { data, error } = await supabase
-      .from('uom')
-      .insert([{ code, name, name_mm, description }])
-      .select()
-      .single();
+    const result = await query(`
+      INSERT INTO uom (code, name, name_mm, description)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [code, name, name_mm, description]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -55,15 +49,19 @@ router.post('/', async (req, res) => {
 // Update UOM
 router.put('/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('uom')
-      .update(req.body)
-      .eq('id', req.params.id)
-      .select()
-      .single();
+    const { code, name, name_mm, description } = req.body;
+    const result = await query(`
+      UPDATE uom
+      SET code = COALESCE($1, code),
+          name = COALESCE($2, name),
+          name_mm = COALESCE($3, name_mm),
+          description = COALESCE($4, description),
+          updated_at = NOW()
+      WHERE id = $5
+      RETURNING *
+    `, [code, name, name_mm, description, req.params.id]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -72,12 +70,7 @@ router.put('/:id', async (req, res) => {
 // Delete UOM (soft delete)
 router.delete('/:id', async (req, res) => {
   try {
-    const { error } = await supabase
-      .from('uom')
-      .update({ is_active: false })
-      .eq('id', req.params.id);
-
-    if (error) throw error;
+    await query('UPDATE uom SET is_active = false WHERE id = $1', [req.params.id]);
     res.json({ success: true, message: 'UOM deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -87,13 +80,12 @@ router.delete('/:id', async (req, res) => {
 // Get product UOMs
 router.get('/product/:productId', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('v_product_uom_details')
-      .select('*')
-      .eq('product_id', req.params.productId);
+    const result = await query(`
+      SELECT * FROM v_product_uom_details
+      WHERE product_id = $1
+    `, [req.params.productId]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

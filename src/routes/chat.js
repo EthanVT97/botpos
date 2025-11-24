@@ -10,26 +10,25 @@ const axios = require('axios');
 // Get all active chat sessions
 router.get('/sessions', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .select(`
-        *,
-        customers (
-          id,
-          name,
-          phone,
-          email,
-          viber_id,
-          telegram_id,
-          messenger_id
-        )
-      `)
-      .eq('is_active', true)
-      .order('last_message_at', { ascending: false });
+    const result = await query(`
+      SELECT 
+        cs.*,
+        json_build_object(
+          'id', c.id,
+          'name', c.name,
+          'phone', c.phone,
+          'email', c.email,
+          'viber_id', c.viber_id,
+          'telegram_id', c.telegram_id,
+          'messenger_id', c.messenger_id
+        ) as customers
+      FROM chat_sessions cs
+      LEFT JOIN customers c ON cs.customer_id = c.id
+      WHERE cs.is_active = true
+      ORDER BY cs.last_message_at DESC
+    `);
 
-    if (error) throw error;
-
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching chat sessions:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -42,16 +41,14 @@ router.get('/messages/:customerId', async (req, res) => {
     const { customerId } = req.params;
     const { limit = 50 } = req.query;
 
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('customer_id', customerId)
-      .order('created_at', { ascending: true })
-      .limit(parseInt(limit));
+    const result = await query(`
+      SELECT * FROM chat_messages
+      WHERE customer_id = $1
+      ORDER BY created_at ASC
+      LIMIT $2
+    `, [customerId, parseInt(limit)]);
 
-    if (error) throw error;
-
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -64,13 +61,13 @@ router.post('/send', chatLimiter, chatValidation.send, async (req, res) => {
     const { customerId, message, channel } = req.body;
 
     // Get customer info
-    const { data: customer, error: customerError } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('id', customerId)
-      .single();
+    const customerResult = await query(
+      'SELECT * FROM customers WHERE id = $1',
+      [customerId]
+    );
 
-    if (customerError || !customer) {
+    const customer = customerResult.rows[0];
+    if (!customer) {
       return res.status(404).json({ 
         success: false, 
         error: 'Customer not found' 
@@ -146,36 +143,35 @@ router.post('/send', chatLimiter, chatValidation.send, async (req, res) => {
     }
 
     // Save message to database
-    const { data: savedMessage, error: saveError } = await supabase
-      .from('chat_messages')
-      .insert([{
-        customer_id: customerId,
-        sender_type: 'admin',
-        message: message,
-        channel: targetChannel,
-        channel_message_id: channelMessageId,
-        is_read: true,
-        metadata: sendError ? { error: sendError } : null
-      }])
-      .select()
-      .single();
+    const messageResult = await query(`
+      INSERT INTO chat_messages (customer_id, sender_type, message, channel, channel_message_id, is_read, metadata)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `, [
+      customerId,
+      'admin',
+      message,
+      targetChannel,
+      channelMessageId,
+      true,
+      sendError ? JSON.stringify({ error: sendError }) : null
+    ]);
 
-    if (saveError) throw saveError;
+    const savedMessage = messageResult.rows[0];
 
     // Emit real-time update via Socket.IO
     emitNewMessage(savedMessage, customerId);
 
     // Update session
-    await supabase
-      .from('chat_sessions')
-      .upsert({
-        customer_id: customerId,
-        channel: targetChannel,
-        last_message_at: new Date(),
-        is_active: true
-      }, {
-        onConflict: 'customer_id'
-      });
+    await query(`
+      INSERT INTO chat_sessions (customer_id, channel, last_message_at, is_active)
+      VALUES ($1, $2, NOW(), true)
+      ON CONFLICT (customer_id) DO UPDATE SET
+        channel = $2,
+        last_message_at = NOW(),
+        is_active = true,
+        updated_at = NOW()
+    `, [customerId, targetChannel]);
 
     res.json({ 
       success: true, 
@@ -195,32 +191,29 @@ router.post('/mark-read/:customerId', chatValidation.markRead, async (req, res) 
     const { customerId } = req.params;
 
     // Get unread message IDs before marking as read
-    const { data: unreadMessages } = await supabase
-      .from('chat_messages')
-      .select('id')
-      .eq('customer_id', customerId)
-      .eq('sender_type', 'customer')
-      .eq('is_read', false);
+    const unreadResult = await query(`
+      SELECT id FROM chat_messages
+      WHERE customer_id = $1 AND sender_type = 'customer' AND is_read = false
+    `, [customerId]);
 
-    const messageIds = unreadMessages?.map(m => m.id) || [];
+    const messageIds = unreadResult.rows.map(m => m.id);
 
     // Mark messages as read
-    const { error } = await supabase
-      .from('chat_messages')
-      .update({ is_read: true, read_at: new Date() })
-      .eq('customer_id', customerId)
-      .eq('sender_type', 'customer')
-      .eq('is_read', false);
-
-    if (error) throw error;
+    await query(`
+      UPDATE chat_messages
+      SET is_read = true, updated_at = NOW()
+      WHERE customer_id = $1 AND sender_type = 'customer' AND is_read = false
+    `, [customerId]);
 
     // Update session unread count
-    const { data: session } = await supabase
-      .from('chat_sessions')
-      .update({ unread_count: 0 })
-      .eq('customer_id', customerId)
-      .select()
-      .single();
+    const sessionResult = await query(`
+      UPDATE chat_sessions
+      SET unread_count = 0, updated_at = NOW()
+      WHERE customer_id = $1
+      RETURNING *
+    `, [customerId]);
+
+    const session = sessionResult.rows[0];
 
     // Emit real-time updates
     if (messageIds.length > 0) {
@@ -228,12 +221,11 @@ router.post('/mark-read/:customerId', chatValidation.markRead, async (req, res) 
     }
 
     // Update total unread count
-    const { data: sessions } = await supabase
-      .from('chat_sessions')
-      .select('unread_count')
-      .eq('is_active', true);
+    const sessionsResult = await query(`
+      SELECT unread_count FROM chat_sessions WHERE is_active = true
+    `);
 
-    const totalUnread = sessions?.reduce((sum, s) => sum + (s.unread_count || 0), 0) || 0;
+    const totalUnread = sessionsResult.rows.reduce((sum, s) => sum + (s.unread_count || 0), 0);
     emitUnreadCountUpdate(totalUnread);
 
     if (session) {
@@ -250,14 +242,11 @@ router.post('/mark-read/:customerId', chatValidation.markRead, async (req, res) 
 // Get unread message count
 router.get('/unread-count', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .select('unread_count')
-      .eq('is_active', true);
+    const result = await query(`
+      SELECT unread_count FROM chat_sessions WHERE is_active = true
+    `);
 
-    if (error) throw error;
-
-    const totalUnread = (data || []).reduce((sum, session) => sum + (session.unread_count || 0), 0);
+    const totalUnread = result.rows.reduce((sum, session) => sum + (session.unread_count || 0), 0);
 
     res.json({ success: true, data: { total: totalUnread } });
   } catch (error) {
@@ -271,17 +260,19 @@ router.post('/sessions/:customerId/close', async (req, res) => {
   try {
     const { customerId } = req.params;
 
-    const { data: session, error } = await supabase
-      .from('chat_sessions')
-      .update({ is_active: false, updated_at: new Date() })
-      .eq('customer_id', customerId)
-      .select()
-      .single();
+    const result = await query(`
+      UPDATE chat_sessions
+      SET is_active = false, updated_at = NOW()
+      WHERE customer_id = $1
+      RETURNING *
+    `, [customerId]);
 
-    if (error) throw error;
+    const session = result.rows[0];
 
     // Emit session update
-    emitSessionUpdate(session);
+    if (session) {
+      emitSessionUpdate(session);
+    }
 
     res.json({ success: true });
   } catch (error) {
