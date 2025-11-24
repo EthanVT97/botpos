@@ -120,14 +120,31 @@ CLIENT_URL=https://your-site.netlify.app
 
 ## 🔌 WebSocket Configuration
 
+### Dual WebSocket Support
+
+The system includes **two WebSocket implementations**:
+
+1. **Socket.IO** (`/socket.io/`) - For real-time features
+   - Used by: Chat, Notifications, Real-time updates
+   - Path: `/socket.io/`
+   - Auto-upgrades to WebSocket
+   - Fallback to polling
+
+2. **Native WebSocket** (`/ws`) - For Render compatibility
+   - Direct WebSocket connection
+   - Path: `/ws`
+   - Heartbeat every 25 seconds
+   - Auto-reconnect on disconnect
+
 ### Backend (Automatic)
 
-Socket.IO is already configured for production:
-- ✅ Supports both WebSocket and polling
-- ✅ Auto-upgrades to WebSocket
-- ✅ Heartbeat mechanism (30s intervals)
+Both WebSocket servers are configured for production:
+- ✅ Socket.IO on `/socket.io/` path
+- ✅ Native WebSocket on `/ws` path
+- ✅ Heartbeat mechanism (25-30s intervals)
 - ✅ Reconnection logic
 - ✅ Works with Render's proxy
+- ✅ SSL/TLS support (wss://)
 
 ### Frontend (Automatic)
 
@@ -137,6 +154,20 @@ The frontend automatically:
 - ✅ Falls back to polling if needed
 - ✅ Handles reconnections
 - ✅ Shows connection status
+
+### WebSocket URLs
+
+**Development:**
+```
+Socket.IO: ws://localhost:3001/socket.io/
+Native WS: ws://localhost:3001/ws
+```
+
+**Production:**
+```
+Socket.IO: wss://your-backend.onrender.com/socket.io/
+Native WS: wss://your-backend.onrender.com/ws
+```
 
 **No additional configuration needed!**
 

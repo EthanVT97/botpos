@@ -4,6 +4,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const { WebSocketServer } = require('ws');
 require('dotenv').config();
 
 const app = express();
@@ -16,6 +17,73 @@ app.set('trust proxy', 1);
 // Initialize Socket.IO
 const { initializeSocket } = require('./config/socket');
 const io = initializeSocket(server);
+
+// Initialize native WebSocket server for /ws path (Render compatibility)
+const wss = new WebSocketServer({ noServer: true });
+
+// WebSocket upgrade handler - MUST be before routes
+server.on('upgrade', (req, socket, head) => {
+  if (req.url === '/ws') {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit('connection', ws, req);
+    });
+  } else {
+    socket.destroy();
+  }
+});
+
+// WebSocket heartbeat (Render requirement - keeps connection alive)
+setInterval(() => {
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1) { // 1 = OPEN
+      client.ping();
+    }
+  });
+}, 25000); // Every 25 seconds
+
+// WebSocket connection handler
+wss.on('connection', (ws, req) => {
+  console.log('✅ Native WebSocket Connected from:', req.socket.remoteAddress);
+
+  // Handle pong response
+  ws.on('pong', () => {
+    // Client is alive
+  });
+
+  // Handle messages
+  ws.on('message', (data) => {
+    try {
+      const message = JSON.parse(data.toString());
+      console.log('📨 WS Message received:', message);
+      
+      // Echo back for testing
+      ws.send(JSON.stringify({ 
+        type: 'ack', 
+        message: 'Message received',
+        timestamp: new Date().toISOString()
+      }));
+    } catch (error) {
+      console.error('WS Message parse error:', error);
+    }
+  });
+
+  // Handle close
+  ws.on('close', (code, reason) => {
+    console.log('❌ WebSocket closed:', code, reason.toString());
+  });
+
+  // Handle errors
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+  });
+
+  // Send welcome message
+  ws.send(JSON.stringify({ 
+    type: 'connected', 
+    message: 'WebSocket connection established',
+    timestamp: new Date().toISOString()
+  }));
+});
 
 // Security middleware
 app.use(helmet());
@@ -79,7 +147,9 @@ app.get('/health', async (req, res) => {
       status: 'OK', 
       message: 'Myanmar POS System is running',
       database: 'connected',
-      websocket: io ? 'active' : 'inactive',
+      socketio: io ? 'active' : 'inactive',
+      websocket: wss ? 'active' : 'inactive',
+      ws_clients: wss.clients.size,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -100,7 +170,8 @@ app.use(errorHandler);
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 Bot webhooks ready`);
-  console.log(`🔌 WebSocket server active`);
+  console.log(`🔌 Socket.IO server active on /socket.io/`);
+  console.log(`🔌 Native WebSocket server active on /ws`);
   console.log(`🌐 Health check: http://localhost:${PORT}/health`);
 });
 
