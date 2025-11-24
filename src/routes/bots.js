@@ -6,21 +6,19 @@ const { pool, query, supabase } = require('../config/database');
 // Get bot configurations
 router.get('/config', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('settings')
-      .select('*')
-      .in('key', [
+    const result = await query(`
+      SELECT * FROM settings
+      WHERE key IN (
         'viber_bot_token',
         'telegram_bot_token',
         'messenger_page_access_token',
         'messenger_verify_token',
         'webhook_domain'
-      ]);
-
-    if (error) throw error;
+      )
+    `);
 
     const config = {};
-    data.forEach(item => {
+    result.rows.forEach(item => {
       // Mask tokens for security (show only last 4 chars)
       if (item.value && item.key.includes('token')) {
         config[item.key] = item.value.length > 4 
@@ -33,6 +31,7 @@ router.get('/config', async (req, res) => {
 
     res.json({ success: true, data: config });
   } catch (error) {
+    console.error('Error fetching bot config:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -59,13 +58,19 @@ router.post('/telegram/setup', async (req, res) => {
 
     if (response.data.ok) {
       // Save token to database
-      await supabase
-        .from('settings')
-        .upsert({ key: 'telegram_bot_token', value: token });
+      await query(`
+        INSERT INTO settings (key, value, updated_at)
+        VALUES ('telegram_bot_token', $1, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = $1, updated_at = NOW()
+      `, [token]);
 
-      await supabase
-        .from('settings')
-        .upsert({ key: 'webhook_domain', value: domain });
+      await query(`
+        INSERT INTO settings (key, value, updated_at)
+        VALUES ('webhook_domain', $1, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = $1, updated_at = NOW()
+      `, [domain]);
 
       res.json({ 
         success: true, 
@@ -116,13 +121,19 @@ router.post('/viber/setup', async (req, res) => {
 
     if (response.data.status === 0) {
       // Save token to database
-      await supabase
-        .from('settings')
-        .upsert({ key: 'viber_bot_token', value: token });
+      await query(`
+        INSERT INTO settings (key, value, updated_at)
+        VALUES ('viber_bot_token', $1, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = $1, updated_at = NOW()
+      `, [token]);
 
-      await supabase
-        .from('settings')
-        .upsert({ key: 'webhook_domain', value: domain });
+      await query(`
+        INSERT INTO settings (key, value, updated_at)
+        VALUES ('webhook_domain', $1, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = $1, updated_at = NOW()
+      `, [domain]);
 
       res.json({ 
         success: true, 
@@ -156,17 +167,26 @@ router.post('/messenger/setup', async (req, res) => {
     }
 
     // Save tokens to database
-    await supabase
-      .from('settings')
-      .upsert({ key: 'messenger_page_access_token', value: pageAccessToken });
+    await query(`
+      INSERT INTO settings (key, value, updated_at)
+      VALUES ('messenger_page_access_token', $1, NOW())
+      ON CONFLICT (key) DO UPDATE
+      SET value = $1, updated_at = NOW()
+    `, [pageAccessToken]);
 
-    await supabase
-      .from('settings')
-      .upsert({ key: 'messenger_verify_token', value: verifyToken });
+    await query(`
+      INSERT INTO settings (key, value, updated_at)
+      VALUES ('messenger_verify_token', $1, NOW())
+      ON CONFLICT (key) DO UPDATE
+      SET value = $1, updated_at = NOW()
+    `, [verifyToken]);
 
-    await supabase
-      .from('settings')
-      .upsert({ key: 'webhook_domain', value: domain });
+    await query(`
+      INSERT INTO settings (key, value, updated_at)
+      VALUES ('webhook_domain', $1, NOW())
+      ON CONFLICT (key) DO UPDATE
+      SET value = $1, updated_at = NOW()
+    `, [domain]);
 
     const webhookUrl = `${domain}/webhooks/messenger`;
 
@@ -255,13 +275,13 @@ router.post('/test/:platform', async (req, res) => {
 // Get webhook status
 router.get('/webhook/status', async (req, res) => {
   try {
-    const { data: settings } = await supabase
-      .from('settings')
-      .select('*')
-      .in('key', ['telegram_bot_token', 'viber_bot_token', 'webhook_domain']);
+    const result = await query(`
+      SELECT * FROM settings
+      WHERE key IN ('telegram_bot_token', 'viber_bot_token', 'webhook_domain')
+    `);
 
     const config = {};
-    settings.forEach(item => {
+    result.rows.forEach(item => {
       config[item.key] = item.value;
     });
 
@@ -312,11 +332,12 @@ router.delete('/:platform/webhook', async (req, res) => {
   try {
     const { platform } = req.params;
 
-    const { data: settings } = await supabase
-      .from('settings')
-      .select('*')
-      .eq('key', `${platform}_bot_token`)
-      .single();
+    const result = await query(
+      'SELECT * FROM settings WHERE key = $1',
+      [`${platform}_bot_token`]
+    );
+
+    const settings = result.rows[0];
 
     if (!settings) {
       return res.status(404).json({ 
