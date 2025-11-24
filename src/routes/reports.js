@@ -38,8 +38,34 @@ router.get('/daily-sales', async (req, res) => {
 // Monthly sales report
 router.get('/monthly-sales', async (req, res) => {
   try {
-    const { month } = req.query;
+    const { month } = req.query; // format: YYYY-MM
+    
+    // Default to current month if not provided
     const targetMonth = month || new Date().toISOString().slice(0, 7);
+    
+    // Validate month format
+    if (!/^\d{4}-\d{2}$/.test(targetMonth)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid month format. Use YYYY-MM (e.g., 2025-11)' 
+      });
+    }
+    
+    const [yearStr, monthStr] = targetMonth.split('-');
+    const year = parseInt(yearStr);
+    const monthNum = parseInt(monthStr);
+    
+    // Validate month range
+    if (monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Month must be between 01 and 12' 
+      });
+    }
+    
+    // Calculate start and end dates
+    const startDate = new Date(year, monthNum - 1, 1);
+    const endDate = new Date(year, monthNum, 0, 23, 59, 59, 999); // Last day of month
     
     const result = await query(`
       SELECT 
@@ -50,11 +76,14 @@ router.get('/monthly-sales', async (req, res) => {
       FROM orders
       WHERE status = 'completed'
         AND created_at >= $1
-        AND created_at < $2
-    `, [`${targetMonth}-01T00:00:00`, `${targetMonth}-32T00:00:00`]);
+        AND created_at <= $2
+    `, [startDate.toISOString(), endDate.toISOString()]);
 
     const data = result.rows[0];
     const summary = {
+      month: targetMonth,
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0],
       total_orders: parseInt(data.total_orders || 0),
       total_revenue: parseFloat(data.total_revenue || 0),
       total_discount: parseFloat(data.total_discount || 0),
