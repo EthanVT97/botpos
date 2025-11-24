@@ -17,7 +17,26 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get UOM by ID
+// Get UOM conversions (must be before /:id route)
+router.get('/conversions', async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT 
+        uc.*,
+        json_build_object('code', fu.code, 'name', fu.name, 'name_mm', fu.name_mm) as from_uom,
+        json_build_object('code', tu.code, 'name', tu.name, 'name_mm', tu.name_mm) as to_uom
+      FROM uom_conversion uc
+      LEFT JOIN uom fu ON uc.from_uom_id = fu.id
+      LEFT JOIN uom tu ON uc.to_uom_id = tu.id
+    `);
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get UOM by ID (must be after specific routes like /conversions)
 router.get('/:id', async (req, res) => {
   try {
     const result = await query('SELECT * FROM uom WHERE id = $1', [req.params.id]);
@@ -98,34 +117,27 @@ router.post('/product', async (req, res) => {
     
     // If this is set as base UOM, unset other base UOMs for this product
     if (is_base_uom) {
-      await supabase
-        .from('product_uom')
-        .update({ is_base_uom: false })
-        .eq('product_id', product_id);
+      await query(`
+        UPDATE product_uom
+        SET is_base_uom = false
+        WHERE product_id = $1
+      `, [product_id]);
       
       // Update product's base_uom_id
-      await supabase
-        .from('products')
-        .update({ base_uom_id: uom_id })
-        .eq('id', product_id);
+      await query(`
+        UPDATE products
+        SET base_uom_id = $1
+        WHERE id = $2
+      `, [uom_id, product_id]);
     }
 
-    const { data, error } = await supabase
-      .from('product_uom')
-      .insert([{
-        product_id,
-        uom_id,
-        is_base_uom,
-        conversion_factor,
-        price,
-        cost,
-        barcode
-      }])
-      .select()
-      .single();
+    const result = await query(`
+      INSERT INTO product_uom (product_id, uom_id, is_base_uom, conversion_factor, price, cost, barcode)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `, [product_id, uom_id, is_base_uom, conversion_factor, price, cost, barcode]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -138,30 +150,35 @@ router.put('/product/:id', async (req, res) => {
     
     // If this is set as base UOM, unset other base UOMs for this product
     if (is_base_uom && product_id) {
-      await supabase
-        .from('product_uom')
-        .update({ is_base_uom: false })
-        .eq('product_id', product_id)
-        .neq('id', req.params.id);
+      await query(`
+        UPDATE product_uom
+        SET is_base_uom = false
+        WHERE product_id = $1 AND id != $2
+      `, [product_id, req.params.id]);
       
       // Update product's base_uom_id
       if (uom_id) {
-        await supabase
-          .from('products')
-          .update({ base_uom_id: uom_id })
-          .eq('id', product_id);
+        await query(`
+          UPDATE products
+          SET base_uom_id = $1
+          WHERE id = $2
+        `, [uom_id, product_id]);
       }
     }
 
-    const { data, error } = await supabase
-      .from('product_uom')
-      .update({ is_base_uom, conversion_factor, price, cost, barcode })
-      .eq('id', req.params.id)
-      .select()
-      .single();
+    const result = await query(`
+      UPDATE product_uom
+      SET is_base_uom = COALESCE($1, is_base_uom),
+          conversion_factor = COALESCE($2, conversion_factor),
+          price = COALESCE($3, price),
+          cost = COALESCE($4, cost),
+          barcode = COALESCE($5, barcode),
+          updated_at = NOW()
+      WHERE id = $6
+      RETURNING *
+    `, [is_base_uom, conversion_factor, price, cost, barcode, req.params.id]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -170,31 +187,13 @@ router.put('/product/:id', async (req, res) => {
 // Delete product UOM
 router.delete('/product/:id', async (req, res) => {
   try {
-    const { error } = await supabase
-      .from('product_uom')
-      .update({ is_active: false })
-      .eq('id', req.params.id);
+    await query(`
+      UPDATE product_uom
+      SET is_active = false
+      WHERE id = $1
+    `, [req.params.id]);
 
-    if (error) throw error;
     res.json({ success: true, message: 'Product UOM deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Get UOM conversions
-router.get('/conversions', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('uom_conversion')
-      .select(`
-        *,
-        from_uom:from_uom_id(code, name, name_mm),
-        to_uom:to_uom_id(code, name, name_mm)
-      `);
-
-    if (error) throw error;
-    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -205,14 +204,13 @@ router.post('/conversions', async (req, res) => {
   try {
     const { from_uom_id, to_uom_id, conversion_factor } = req.body;
     
-    const { data, error } = await supabase
-      .from('uom_conversion')
-      .insert([{ from_uom_id, to_uom_id, conversion_factor }])
-      .select()
-      .single();
+    const result = await query(`
+      INSERT INTO uom_conversion (from_uom_id, to_uom_id, conversion_factor)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `, [from_uom_id, to_uom_id, conversion_factor]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -223,15 +221,11 @@ router.post('/convert', async (req, res) => {
   try {
     const { product_id, from_uom_id, to_uom_id, quantity } = req.body;
     
-    const { data, error } = await supabase.rpc('convert_uom_quantity', {
-      p_product_id: product_id,
-      p_from_uom_id: from_uom_id,
-      p_to_uom_id: to_uom_id,
-      p_quantity: quantity
-    });
+    const result = await query(`
+      SELECT convert_uom_quantity($1, $2, $3, $4) as converted_quantity
+    `, [product_id, from_uom_id, to_uom_id, quantity]);
 
-    if (error) throw error;
-    res.json({ success: true, data: { converted_quantity: data } });
+    res.json({ success: true, data: { converted_quantity: result.rows[0].converted_quantity } });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
