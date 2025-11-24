@@ -353,43 +353,118 @@ router.get('/dashboard', async (req, res) => {
     const startDate = start_date || moment().subtract(30, 'days').format('YYYY-MM-DD');
     const endDate = end_date || moment().format('YYYY-MM-DD');
 
-    // Fetch all data in parallel
-    const [
-      summaryRes,
-      trendRes,
-      topProductsRes,
-      paymentRes,
-      categoryRes,
-      hourlyRes
-    ] = await Promise.all([
-      supabase.rpc('get_sales_summary', {
-        p_start_date: startDate,
-        p_end_date: endDate
-      }),
-      supabase.rpc('get_sales_trend', {
-        p_start_date: startDate,
-        p_end_date: endDate,
-        p_interval: 'day'
-      }),
-      supabase.rpc('get_top_products', {
-        p_start_date: startDate,
-        p_end_date: endDate,
-        p_limit: 5
-      }),
-      supabase.from('v_payment_analytics').select('*'),
-      supabase.from('v_category_performance').select('*').order('total_revenue', { ascending: false }).limit(5),
-      supabase.from('v_hourly_sales').select('*')
-    ]);
+    // Get sales summary
+    const summaryResult = await query(`
+      SELECT 
+        COALESCE(SUM(total_amount), 0) as total_sales,
+        COUNT(*) as total_orders,
+        COALESCE(AVG(total_amount), 0) as avg_order_value,
+        COALESCE(SUM(total_amount - COALESCE(discount_amount, 0)), 0) as total_profit,
+        COALESCE(SUM(discount_amount), 0) as total_discount,
+        COUNT(DISTINCT customer_id) as unique_customers
+      FROM orders
+      WHERE status = 'completed'
+        AND created_at >= $1
+        AND created_at <= $2
+    `, [startDate, endDate + ' 23:59:59']);
+
+    // Get sales trend (daily)
+    const trendResult = await query(`
+      SELECT 
+        DATE(created_at) as period,
+        COALESCE(SUM(total_amount), 0) as total_sales,
+        COUNT(*) as order_count
+      FROM orders
+      WHERE status = 'completed'
+        AND created_at >= $1
+        AND created_at <= $2
+      GROUP BY DATE(created_at)
+      ORDER BY period ASC
+    `, [startDate, endDate + ' 23:59:59']);
+
+    // Get top products
+    const topProductsResult = await query(`
+      SELECT 
+        p.name as product_name,
+        p.name_mm as product_name_mm,
+        SUM(oi.quantity) as quantity_sold,
+        SUM(oi.subtotal) as revenue
+      FROM order_items oi
+      JOIN products p ON oi.product_id = p.id
+      JOIN orders o ON oi.order_id = o.id
+      WHERE o.status = 'completed'
+        AND o.created_at >= $1
+        AND o.created_at <= $2
+      GROUP BY p.id, p.name, p.name_mm
+      ORDER BY quantity_sold DESC
+      LIMIT 5
+    `, [startDate, endDate + ' 23:59:59']);
+
+    // Get payment methods
+    const paymentResult = await query(`
+      SELECT 
+        payment_method,
+        COUNT(*) as transaction_count,
+        SUM(total_amount) as total_amount
+      FROM orders
+      WHERE status = 'completed'
+        AND created_at >= $1
+        AND created_at <= $2
+      GROUP BY payment_method
+      ORDER BY total_amount DESC
+    `, [startDate, endDate + ' 23:59:59']);
+
+    // Get top categories
+    const categoryResult = await query(`
+      SELECT 
+        c.name,
+        c.name_mm,
+        COUNT(DISTINCT p.id) as product_count,
+        SUM(oi.quantity) as total_quantity_sold,
+        SUM(oi.subtotal) as total_revenue,
+        SUM(oi.subtotal - (oi.quantity * p.cost)) as total_profit
+      FROM order_items oi
+      JOIN products p ON oi.product_id = p.id
+      JOIN categories c ON p.category_id = c.id
+      JOIN orders o ON oi.order_id = o.id
+      WHERE o.status = 'completed'
+        AND o.created_at >= $1
+        AND o.created_at <= $2
+      GROUP BY c.id, c.name, c.name_mm
+      ORDER BY total_revenue DESC
+      LIMIT 5
+    `, [startDate, endDate + ' 23:59:59']);
+
+    // Get hourly sales pattern
+    const hourlyResult = await query(`
+      SELECT 
+        EXTRACT(HOUR FROM created_at) as hour_of_day,
+        COUNT(*) as order_count,
+        SUM(total_amount) as total_sales
+      FROM orders
+      WHERE status = 'completed'
+        AND created_at >= $1
+        AND created_at <= $2
+      GROUP BY EXTRACT(HOUR FROM created_at)
+      ORDER BY hour_of_day ASC
+    `, [startDate, endDate + ' 23:59:59']);
 
     res.json({
       success: true,
       data: {
-        summary: summaryRes.data?.[0] || {},
-        sales_trend: trendRes.data || [],
-        top_products: topProductsRes.data || [],
-        payment_methods: paymentRes.data || [],
-        top_categories: categoryRes.data || [],
-        hourly_sales: hourlyRes.data || []
+        summary: summaryResult.rows[0] || {
+          total_sales: 0,
+          total_orders: 0,
+          avg_order_value: 0,
+          total_profit: 0,
+          total_discount: 0,
+          unique_customers: 0
+        },
+        sales_trend: trendResult.rows || [],
+        top_products: topProductsResult.rows || [],
+        payment_methods: paymentResult.rows || [],
+        top_categories: categoryResult.rows || [],
+        hourly_sales: hourlyResult.rows || []
       },
       period: { start_date: startDate, end_date: endDate }
     });

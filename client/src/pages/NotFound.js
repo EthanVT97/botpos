@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Home, ArrowLeft } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Home, ArrowLeft, AlertCircle } from 'lucide-react';
 
 const NotFound = () => {
   const navigate = useNavigate();
-  const [countdown, setCountdown] = useState(5);
+  const location = useLocation();
+  const [countdown, setCountdown] = useState(10);
+  const [autoRedirect, setAutoRedirect] = useState(true);
 
   useEffect(() => {
+    if (!autoRedirect) return;
+
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          navigate('/');
+          navigate('/', { replace: true });
           return 0;
         }
         return prev - 1;
@@ -19,7 +23,7 @@ const NotFound = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [navigate]);
+  }, [navigate, autoRedirect]);
 
   return (
     <div style={{
@@ -72,14 +76,49 @@ const NotFound = () => {
 
       <div style={{
         padding: '15px 25px',
-        backgroundColor: '#f3f4f6',
+        backgroundColor: '#fef3c7',
+        border: '1px solid #fbbf24',
         borderRadius: '8px',
-        marginBottom: '30px',
+        marginBottom: '20px',
         fontSize: '14px',
-        color: '#6b7280'
+        color: '#92400e',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        maxWidth: '500px'
       }}>
-        Redirecting to home in <strong style={{ color: '#6366f1', fontSize: '18px' }}>{countdown}</strong> seconds...
+        <AlertCircle size={20} color="#f59e0b" />
+        <div>
+          <strong>Path not found:</strong> {location.pathname}
+        </div>
       </div>
+
+      {autoRedirect && (
+        <div style={{
+          padding: '15px 25px',
+          backgroundColor: '#f3f4f6',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          fontSize: '14px',
+          color: '#6b7280'
+        }}>
+          Redirecting to home in <strong style={{ color: '#6366f1', fontSize: '18px' }}>{countdown}</strong> seconds...
+          <button
+            onClick={() => setAutoRedirect(false)}
+            style={{
+              marginLeft: '15px',
+              padding: '4px 12px',
+              fontSize: '12px',
+              background: 'white',
+              border: '1px solid #d1d5db',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', justifyContent: 'center' }}>
         <button
