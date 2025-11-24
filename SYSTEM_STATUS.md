@@ -23,16 +23,30 @@ The Myanmar POS System is fully operational with all routes working correctly. T
 - `/api/chat/unread-count` - Get total unread message count
 - `/api/chat/sessions/:customerId/close` - Close/archive chat session
 
-### 2. **UOM Routes Database Compatibility**
-**Problem:** UOM routes had similar Supabase query chaining issues.
+### 2. **UOM Routes Database Compatibility & Route Order**
+**Problem:** 
+- UOM routes had Supabase query chaining issues
+- Route order caused `/conversions` to be matched by `/:id`, treating "conversions" as a UUID
 
-**Solution:** Converted all UOM routes to use direct SQL queries:
+**Solution:** 
+- Converted all UOM routes to use direct SQL queries
+- Reordered routes: specific routes (`/conversions`) before parameterized routes (`/:id`)
+- Fixed all product UOM routes
+- Fixed UOM conversion routes
+
+**Routes Fixed:**
 - `/api/uom` - Get all active UOMs (14 UOMs available)
+- `/api/uom/conversions` - Get UOM conversions (6 conversions available)
 - `/api/uom/:id` - Get UOM by ID
 - `/api/uom` (POST) - Create new UOM
 - `/api/uom/:id` (PUT) - Update UOM
 - `/api/uom/:id` (DELETE) - Soft delete UOM
 - `/api/uom/product/:productId` - Get product UOMs
+- `/api/uom/product` (POST) - Add UOM to product
+- `/api/uom/product/:id` (PUT) - Update product UOM
+- `/api/uom/product/:id` (DELETE) - Delete product UOM
+- `/api/uom/conversions` (POST) - Add UOM conversion
+- `/api/uom/convert` (POST) - Convert quantity between UOMs
 
 ---
 
@@ -176,7 +190,12 @@ The sidebar now includes the **Messages** menu item with:
 
 ### Files Modified
 1. `src/routes/chat.js` - Converted to direct SQL queries
-2. `src/routes/uom.js` - Converted to direct SQL queries
+2. `src/routes/uom.js` - Converted to direct SQL queries + fixed route order
+
+### Route Order Fix
+**Problem:** The `/conversions` route was being matched by `/:id` route, causing UUID parsing errors.
+
+**Solution:** Reordered routes so specific routes (`/conversions`) come before parameterized routes (`/:id`).
 
 ### No Changes Needed
 - `client/src/App.js` - Messages route already configured
