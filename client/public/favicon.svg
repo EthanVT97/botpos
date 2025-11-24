@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Background Circle -->
+  <circle cx="50" cy="50" r="48" fill="#6366f1"/>
+  
+  <!-- Cash Register Base -->
+  <rect x="25" y="45" width="50" height="35" rx="3" fill="#ffffff"/>
+  
+  <!-- Screen -->
+  <rect x="30" y="35" width="40" height="15" rx="2" fill="#10b981"/>
+  <text x="50" y="46" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="middle">POS</text>
+  
+  <!-- Buttons -->
+  <circle cx="35" cy="60" r="3" fill="#6366f1"/>
+  <circle cx="45" cy="60" r="3" fill="#6366f1"/>
+  <circle cx="55" cy="60" r="3" fill="#6366f1"/>
+  <circle cx="65" cy="60" r="3" fill="#6366f1"/>
+  
+  <circle cx="35" cy="68" r="3" fill="#6366f1"/>
+  <circle cx="45" cy="68" r="3" fill="#6366f1"/>
+  <circle cx="55" cy="68" r="3" fill="#6366f1"/>
+  <circle cx="65" cy="68" r="3" fill="#6366f1"/>
+  
+  <!-- Receipt -->
+  <rect x="60" y="25" width="15" height="20" rx="1" fill="#ffffff" stroke="#6366f1" stroke-width="1"/>
+  <line x1="62" y1="28" x2="73" y2="28" stroke="#6366f1" stroke-width="0.5"/>
+  <line x1="62" y1="31" x2="73" y2="31" stroke="#6366f1" stroke-width="0.5"/>
+  <line x1="62" y1="34" x2="73" y2="34" stroke="#6366f1" stroke-width="0.5"/>
+  <line x1="62" y1="37" x2="70" y2="37" stroke="#6366f1" stroke-width="0.5"/>
+</svg>
