@@ -1,0 +1,499 @@
+const express = require('express');
+const router = express.Router();
+const bcrypt = require('bcryptjs');
+const { supabase } = require('../config/supabase');
+const {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyToken,
+  authenticate
+} = require('../middleware/auth');
+const { body, validationResult } = require('express-validator');
+
+/**
+ * @route   POST /api/auth/register
+ * @desc    Register new user
+ * @access  Public (but should be restricted in production)
+ */
+router.post('/register',
+  [
+    body('email').isEmail().normalizeEmail(),
+    body('password').isLength({ min: 6 }),
+    body('full_name').trim().notEmpty(),
+    body('role').optional().isIn(['admin', 'manager', 'cashier', 'viewer'])
+  ],
+  async (req, res) => {
+    try {
+      // Validate input
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array()
+        });
+      }
+
+      const { email, password, full_name, role = 'cashier' } = req.body;
+
+      // Check if user already exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          error: 'User with this email already exists'
+        });
+      }
+
+      // Hash password
+      const salt = await bcrypt.genSalt(10);
+      const password_hash = await bcrypt.hash(password, salt);
+
+      // Create user
+      const { data: user, error } = await supabase
+        .from('users')
+        .insert([{
+          email,
+          full_name,
+          role,
+          password_hash,
+          is_active: true
+        }])
+        .select('id, email, full_name, role, created_at')
+        .single();
+
+      if (error) throw error;
+
+      // Generate tokens
+      const accessToken = generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user);
+
+      // Save refresh token
+      await supabase
+        .from('users')
+        .update({ refresh_token: refreshToken })
+        .eq('id', user.id);
+
+      res.status(201).json({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            full_name: user.full_name,
+            role: user.role
+          },
+          accessToken,
+          refreshToken
+        },
+        message: 'User registered successfully'
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Registration failed'
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /api/auth/login
+ * @desc    Login user
+ * @access  Public
+ */
+router.post('/login',
+  [
+    body('email').isEmail().normalizeEmail(),
+    body('password').notEmpty()
+  ],
+  async (req, res) => {
+    try {
+      // Validate input
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array()
+        });
+      }
+
+      const { email, password } = req.body;
+
+      // Get user
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (error || !user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid email or password'
+        });
+      }
+
+      // Check if user is active
+      if (!user.is_active) {
+        return res.status(403).json({
+          success: false,
+          error: 'Your account has been deactivated. Please contact administrator.'
+        });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password_hash);
+      
+      if (!isValidPassword) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid email or password'
+        });
+      }
+
+      // Generate tokens
+      const accessToken = generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user);
+
+      // Update last login and refresh token
+      await supabase
+        .from('users')
+        .update({
+          last_login: new Date(),
+          refresh_token: refreshToken
+        })
+        .eq('id', user.id);
+
+      // Get role permissions
+      const { data: role } = await supabase
+        .from('roles')
+        .select('permissions')
+        .eq('name', user.role)
+        .single();
+
+      res.json({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            full_name: user.full_name,
+            role: user.role,
+            permissions: role?.permissions || {}
+          },
+          accessToken,
+          refreshToken
+        },
+        message: 'Login successful'
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Login failed'
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /api/auth/refresh
+ * @desc    Refresh access token
+ * @access  Public
+ */
+router.post('/refresh',
+  [body('refreshToken').notEmpty()],
+  async (req, res) => {
+    try {
+      const { refreshToken } = req.body;
+
+      // Verify refresh token
+      const decoded = verifyToken(refreshToken);
+      
+      if (!decoded) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid refresh token'
+        });
+      }
+
+      // Get user and verify refresh token
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', decoded.id)
+        .eq('refresh_token', refreshToken)
+        .single();
+
+      if (error || !user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid refresh token'
+        });
+      }
+
+      if (!user.is_active) {
+        return res.status(403).json({
+          success: false,
+          error: 'Account is inactive'
+        });
+      }
+
+      // Generate new tokens
+      const newAccessToken = generateAccessToken(user);
+      const newRefreshToken = generateRefreshToken(user);
+
+      // Update refresh token
+      await supabase
+        .from('users')
+        .update({ refresh_token: newRefreshToken })
+        .eq('id', user.id);
+
+      res.json({
+        success: true,
+        data: {
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken
+        }
+      });
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Token refresh failed'
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /api/auth/logout
+ * @desc    Logout user
+ * @access  Private
+ */
+router.post('/logout', authenticate, async (req, res) => {
+  try {
+    // Clear refresh token
+    await supabase
+      .from('users')
+      .update({ refresh_token: null })
+      .eq('id', req.user.id);
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Logout failed'
+    });
+  }
+});
+
+/**
+ * @route   GET /api/auth/me
+ * @desc    Get current user
+ * @access  Private
+ */
+router.get('/me', authenticate, async (req, res) => {
+  try {
+    // Get role permissions
+    const { data: role } = await supabase
+      .from('roles')
+      .select('permissions')
+      .eq('name', req.user.role)
+      .single();
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          ...req.user,
+          permissions: role?.permissions || {}
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get user'
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/auth/change-password
+ * @desc    Change user password
+ * @access  Private
+ */
+router.put('/change-password',
+  authenticate,
+  [
+    body('currentPassword').notEmpty(),
+    body('newPassword').isLength({ min: 6 })
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array()
+        });
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      // Get user with password
+      const { data: user } = await supabase
+        .from('users')
+        .select('password_hash')
+        .eq('id', req.user.id)
+        .single();
+
+      // Verify current password
+      const isValid = await bcrypt.compare(currentPassword, user.password_hash);
+      
+      if (!isValid) {
+        return res.status(401).json({
+          success: false,
+          error: 'Current password is incorrect'
+        });
+      }
+
+      // Hash new password
+      const salt = await bcrypt.genSalt(10);
+      const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+      // Update password
+      await supabase
+        .from('users')
+        .update({ password_hash: newPasswordHash })
+        .eq('id', req.user.id);
+
+      res.json({
+        success: true,
+        message: 'Password changed successfully'
+      });
+    } catch (error) {
+      console.error('Change password error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to change password'
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /api/auth/forgot-password
+ * @desc    Request password reset
+ * @access  Public
+ */
+router.post('/forgot-password',
+  [body('email').isEmail().normalizeEmail()],
+  async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      // Check if user exists
+      const { data: user } = await supabase
+        .from('users')
+        .select('id, email, full_name')
+        .eq('email', email)
+        .single();
+
+      // Always return success to prevent email enumeration
+      if (!user) {
+        return res.json({
+          success: true,
+          message: 'If the email exists, a password reset link has been sent'
+        });
+      }
+
+      // Generate reset token (valid for 1 hour)
+      const resetToken = jwt.sign(
+        { id: user.id, email: user.email, type: 'password_reset' },
+        JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      // TODO: Send email with reset link
+      // For now, just log it
+      console.log(`Password reset token for ${email}: ${resetToken}`);
+      console.log(`Reset link: ${process.env.CLIENT_URL}/reset-password?token=${resetToken}`);
+
+      res.json({
+        success: true,
+        message: 'If the email exists, a password reset link has been sent',
+        // Remove this in production
+        ...(process.env.NODE_ENV === 'development' && { resetToken })
+      });
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to process request'
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /api/auth/reset-password
+ * @desc    Reset password with token
+ * @access  Public
+ */
+router.post('/reset-password',
+  [
+    body('token').notEmpty(),
+    body('newPassword').isLength({ min: 6 })
+  ],
+  async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      // Verify token
+      const decoded = verifyToken(token);
+      
+      if (!decoded || decoded.type !== 'password_reset') {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid or expired reset token'
+        });
+      }
+
+      // Hash new password
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(newPassword, salt);
+
+      // Update password
+      await supabase
+        .from('users')
+        .update({ password_hash: passwordHash })
+        .eq('id', decoded.id);
+
+      res.json({
+        success: true,
+        message: 'Password reset successfully'
+      });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to reset password'
+      });
+    }
+  }
+);
+
+module.exports = router;

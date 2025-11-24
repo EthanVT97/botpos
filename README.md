@@ -1,10 +1,11 @@
 # Myanmar Business POS System 🇲🇲
 
-A comprehensive Point of Sale system with **Real-Time Multi-Channel Chat** and bot integrations (Viber, Telegram, Messenger) built with Node.js, React, and Supabase. Designed specifically for Myanmar businesses with full bilingual support.
+A comprehensive Point of Sale system with Real-Time Multi-Channel Chat, Bot Integrations, Multi-Store Support, and advanced features built with Node.js, React, and PostgreSQL. Designed specifically for Myanmar businesses with full bilingual support.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen)](https://nodejs.org/)
 [![React Version](https://img.shields.io/badge/react-18.2.0-blue)](https://reactjs.org/)
+[![Status](https://img.shields.io/badge/status-production%20ready-success)](https://github.com)
 
 ---
 
@@ -31,6 +32,14 @@ A comprehensive Point of Sale system with **Real-Time Multi-Channel Chat** and b
 - **Reports & Analytics** - Daily/monthly sales, top products, profit calculations
 - **Settings** - Configurable store settings, tax rates, thresholds
 
+### 🏪 Multi-Store Support (NEW!)
+- **Multiple Locations** - Manage unlimited store branches
+- **Per-Store Inventory** - Track stock separately for each location
+- **Store Transfers** - Move inventory between stores with approval workflow
+- **Performance Analytics** - Compare sales and metrics across stores
+- **User Assignment** - Assign staff to specific stores
+- **Store Settings** - Configure timezone, currency, and tax per store
+
 ### 🤖 Bot Integrations
 - **Viber Bot** - Customer interactions in Myanmar language
 - **Telegram Bot** - Product browsing and order tracking
@@ -46,6 +55,25 @@ A comprehensive Point of Sale system with **Real-Time Multi-Channel Chat** and b
 - **Action Nodes** - Show products, orders, or execute custom actions
 - **Multi-Channel** - Works across Telegram, Viber, and Messenger
 
+### 📄 Receipt Printing
+- **PDF Receipts** - Professional A4 format receipts
+- **Thermal Printer** - ESC/POS compatible format
+- **Customizable** - Store info, logo, and layout
+- **Print from Orders** - Direct printing from order list
+
+### 📷 Barcode Scanning
+- **Camera Scanning** - Real-time barcode detection with Quagga
+- **Manual Input** - Keyboard entry for barcodes
+- **Multiple Formats** - EAN, UPC, Code128, Code39, and more
+- **Sound Feedback** - Beep on successful scan
+
+### 📧 Email/SMS Notifications
+- **Order Confirmations** - Auto-send on order creation
+- **Status Updates** - Notify on order status change
+- **Low Stock Alerts** - Email admins when stock is low
+- **Daily Reports** - Automated daily sales summary
+- **HTML Templates** - Beautiful email templates
+
 ### 🔒 Security Features
 - **Rate Limiting** - Protect API from abuse (100 req/15min)
 - **Input Validation** - Validate all user inputs
@@ -59,7 +87,7 @@ A comprehensive Point of Sale system with **Real-Time Multi-Channel Chat** and b
 
 ### Prerequisites
 - Node.js 16+ and npm
-- Supabase account (free tier works)
+- PostgreSQL database (Render PostgreSQL recommended)
 - Bot tokens (optional, for chat features)
 
 ### 1. Clone & Install
@@ -88,17 +116,26 @@ nano .env
 
 Required environment variables:
 ```env
-# Supabase
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_KEY=your_supabase_service_key
+# Database (PostgreSQL)
+DATABASE_URL=postgres://username:password@hostname:port/database
 
 # Server
 PORT=3001
 NODE_ENV=development
 CLIENT_URL=http://localhost:3000
 
-# Bot Tokens (Optional - configure in Settings page)
+# Email (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# SMS (Twilio)
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_PHONE_NUMBER=+1234567890
+
+# Bot Tokens (Optional)
 TELEGRAM_BOT_TOKEN=your_telegram_token
 VIBER_BOT_TOKEN=your_viber_token
 MESSENGER_PAGE_ACCESS_TOKEN=your_messenger_token
@@ -107,27 +144,34 @@ MESSENGER_VERIFY_TOKEN=your_verify_token
 
 ### 3. Setup Database
 
-**Option A: Supabase Dashboard (Recommended)**
-1. Go to your Supabase Dashboard
-2. Click **SQL Editor** → **New Query**
-3. Copy and paste the content from `supabase/schema.sql`
-4. Click **Run**
-5. Repeat for `supabase/chat_schema.sql`
-6. Repeat for `supabase/bot_flow_schema.sql`
-7. Repeat for `supabase/uom_schema.sql`
+**Create PostgreSQL Database:**
 
-**Option B: Supabase CLI**
-```bash
-supabase db push
-```
+1. Go to https://render.com and sign in
+2. Click **"New +"** → **"PostgreSQL"**
+3. Configure:
+   - Name: `myanmar-pos-db`
+   - Region: Singapore (recommended for Asia)
+   - Plan: Free or Starter ($7/month)
+4. Copy the **External Database URL**
 
-### 4. Seed Sample Data (Optional)
+**Run Database Schemas:**
 
 ```bash
-npm run seed
+# Set your database URL
+export DATABASE_URL="your_database_url_here"
+
+# Run all schemas
+psql "$DATABASE_URL" -f supabase/schema.sql
+psql "$DATABASE_URL" -f supabase/chat_schema.sql
+psql "$DATABASE_URL" -f supabase/bot_flow_schema.sql
+psql "$DATABASE_URL" -f supabase/uom_schema.sql
+psql "$DATABASE_URL" -f supabase/multi_store_schema.sql
+
+# Or use the setup script
+./scripts/setup-multi-store.sh
 ```
 
-### 5. Start Development
+### 4. Start Development
 
 ```bash
 # Terminal 1 - Backend
@@ -151,18 +195,20 @@ myanmar-pos-system/
 │   ├── src/
 │   │   ├── api/              # API client
 │   │   ├── components/       # Reusable components
-│   │   │   ├── ChatRealtime.js  # Real-time chat with WebSocket
-│   │   │   ├── Chat.js          # Legacy polling chat
-│   │   │   └── ...
+│   │   │   ├── ChatRealtime.js  # Real-time chat
+│   │   │   ├── BarcodeScanner.js # Barcode scanner
+│   │   │   └── Receipt.js       # Receipt component
 │   │   ├── pages/            # Page components
 │   │   │   ├── Dashboard.js  # Main dashboard
 │   │   │   ├── POS.js        # Point of Sale
+│   │   │   ├── Stores.js     # Store management
+│   │   │   ├── StoreTransfers.js # Store transfers
 │   │   │   └── ...
 │   │   └── App.js
 │   └── package.json
 ├── src/                       # Node.js Backend
 │   ├── config/               # Configuration
-│   │   ├── supabase.js       # Database config
+│   │   ├── database.js       # PostgreSQL config
 │   │   ├── bots.js           # Bot config
 │   │   └── socket.js         # WebSocket config
 │   ├── middleware/           # Express middleware
@@ -170,22 +216,25 @@ myanmar-pos-system/
 │   │   ├── validator.js      # Input validation
 │   │   └── errorHandler.js   # Error handling
 │   ├── routes/               # API routes
-│   │   ├── chat.js           # Chat API with WebSocket
-│   │   ├── products.js
-│   │   ├── orders.js
+│   │   ├── chat.js           # Chat API
+│   │   ├── products.js       # Products API
+│   │   ├── orders.js         # Orders API
+│   │   ├── stores.js         # Stores API
+│   │   ├── storeTransfers.js # Transfers API
+│   │   ├── print.js          # Receipt printing
+│   │   ├── notifications.js  # Email/SMS
 │   │   └── webhooks/         # Bot webhooks
-│   │       ├── viber.js
-│   │       ├── telegram.js
-│   │       └── messenger.js
-│   ├── utils/                # Utilities
-│   │   ├── flowExecutor.js   # Bot flow engine
-│   │   └── seedData.js       # Database seeding
-│   └── server.js             # Main server with WebSocket
+│   ├── services/             # Business logic
+│   │   └── notificationService.js
+│   └── server.js             # Main server
 ├── supabase/                 # Database schemas
 │   ├── schema.sql            # Main POS schema
-│   ├── chat_schema.sql       # Chat feature schema
-│   ├── bot_flow_schema.sql   # Bot flows schema
-│   └── uom_schema.sql        # UOM schema
+│   ├── chat_schema.sql       # Chat feature
+│   ├── bot_flow_schema.sql   # Bot flows
+│   ├── uom_schema.sql        # UOM support
+│   └── multi_store_schema.sql # Multi-store
+├── scripts/                  # Setup scripts
+│   └── setup-multi-store.sh
 ├── .env.example              # Environment template
 ├── package.json
 └── README.md
@@ -195,7 +244,7 @@ myanmar-pos-system/
 
 ## 🗄️ Database Schema
 
-### Core Tables
+### Core Tables (8 tables)
 - **categories** - Product categories
 - **products** - Product catalog with UOM support
 - **customers** - Customer information with bot IDs
@@ -205,20 +254,31 @@ myanmar-pos-system/
 - **users** - System users
 - **settings** - Configuration
 
-### Chat Tables
+### Chat Tables (2 tables)
 - **chat_messages** - All messages (customer ↔ admin)
 - **chat_sessions** - Active conversations with unread counts
 
-### Bot Flow Tables
+### Bot Flow Tables (4 tables)
 - **bot_flows** - Flow definitions
 - **bot_flow_nodes** - Flow nodes (message, question, action)
 - **bot_flow_connections** - Node connections
 - **bot_flow_states** - User flow progress
 
-### UOM Tables
+### UOM Tables (3 tables + 1 view)
 - **uom** - Unit of measure master data
 - **product_uom** - Product-specific UOM configurations
 - **uom_conversion** - Standard UOM conversion rules
+- **v_product_uom_details** - UOM details view
+
+### Multi-Store Tables (5 tables + 1 view)
+- **stores** - Store locations and branches
+- **store_inventory** - Product inventory per store
+- **store_transfers** - Inventory transfers between stores
+- **store_transfer_items** - Items in each transfer
+- **user_stores** - User access to stores
+- **v_store_performance** - Store performance metrics
+
+**Total: 23 tables + 2 views**
 
 ---
 
@@ -243,6 +303,30 @@ PATCH  /api/orders/:id/status  - Update order status
 DELETE /api/orders/:id         - Delete order
 ```
 
+### Stores
+```
+GET    /api/stores                    - Get all stores
+GET    /api/stores/:id                - Get store by ID
+POST   /api/stores                    - Create store
+PUT    /api/stores/:id                - Update store
+DELETE /api/stores/:id                - Delete store
+GET    /api/stores/:id/inventory      - Get store inventory
+POST   /api/stores/:id/inventory      - Update store inventory
+GET    /api/stores/:id/performance    - Get store performance
+GET    /api/stores/performance/all    - Get all stores performance
+```
+
+### Store Transfers
+```
+GET    /api/store-transfers           - Get all transfers
+GET    /api/store-transfers/:id       - Get transfer by ID
+POST   /api/store-transfers           - Create transfer
+POST   /api/store-transfers/:id/approve   - Approve transfer
+POST   /api/store-transfers/:id/complete  - Complete transfer
+POST   /api/store-transfers/:id/cancel    - Cancel transfer
+DELETE /api/store-transfers/:id       - Delete transfer
+```
+
 ### Chat (Real-Time)
 ```
 GET    /api/chat/sessions      - Get active chat sessions
@@ -251,6 +335,23 @@ POST   /api/chat/send          - Send message to customer
 POST   /api/chat/mark-read/:customerId - Mark as read
 GET    /api/chat/unread-count  - Get unread count
 POST   /api/chat/sessions/:customerId/close - Close session
+```
+
+### Receipt Printing
+```
+GET    /api/print/receipt/:orderId    - Generate PDF receipt
+GET    /api/print/thermal/:orderId    - Generate thermal format
+POST   /api/print/settings            - Update print settings
+```
+
+### Notifications
+```
+POST   /api/notifications/test-email           - Test email config
+POST   /api/notifications/test-sms             - Test SMS config
+POST   /api/notifications/order-confirmation   - Send order confirmation
+POST   /api/notifications/order-status         - Send status update
+POST   /api/notifications/low-stock            - Send low stock alert
+POST   /api/notifications/daily-report         - Send daily report
 ```
 
 ### UOM
@@ -279,21 +380,68 @@ POST   /webhooks/messenger     - Messenger webhook
 
 ---
 
-## 💬 Real-Time Chat Setup
+## 🏪 Multi-Store Support
 
-### Step 1: Update Dashboard Component
+### Overview
+Manage multiple store locations with centralized control, per-store inventory tracking, and inter-store transfers.
 
-In `client/src/pages/Dashboard.js`, change:
+### Features
+- **Multiple Locations** - Create and manage unlimited stores
+- **Per-Store Inventory** - Track stock separately for each location
+- **Store Transfers** - Move inventory between stores with approval workflow
+- **Performance Analytics** - Compare sales and metrics across stores
+- **User Assignment** - Assign staff to specific stores
+- **Store Settings** - Configure timezone, currency, and tax per store
 
-```javascript
-// OLD (Polling)
-import Chat from '../components/Chat';
+### Quick Setup
+```bash
+# Run setup script
+./scripts/setup-multi-store.sh
 
-// NEW (Real-Time WebSocket)
-import Chat from '../components/ChatRealtime';
+# Or manually
+psql "$DATABASE_URL" -f supabase/multi_store_schema.sql
 ```
 
-### Step 2: Configure Bots
+### Creating a Store
+1. Go to **Stores** page
+2. Click **"Add Store"** button
+3. Fill in store details:
+   - Name (required): Store name in English
+   - Myanmar Name: Store name in Myanmar
+   - Code (required): Unique store code (e.g., MAIN, BR01)
+   - Address, Phone, Email
+   - Currency: MMK, USD, or THB
+   - Tax Rate: Default tax percentage
+4. Click **"Create Store"**
+
+### Creating a Transfer
+1. Go to **Transfers** page
+2. Click **"New Transfer"** button
+3. Select **From Store** (source)
+4. Select **To Store** (destination)
+5. Add items:
+   - Select product
+   - Enter quantity
+   - Click "Add"
+6. Add optional notes
+7. Click **"Create Transfer"**
+
+### Transfer Workflow
+```
+1. CREATE → Pending (awaiting approval)
+2. APPROVE → In Transit (stock deducted from source)
+3. COMPLETE → Completed (stock added to destination)
+```
+
+### Default Stores
+- **Main Store (MAIN)** - Yangon, Myanmar
+- **Branch 1 (BR01)** - Mandalay, Myanmar
+
+---
+
+## 💬 Real-Time Chat Setup
+
+### Step 1: Configure Bots
 
 1. Open your POS Dashboard
 2. Go to **Settings** page
@@ -303,7 +451,7 @@ import Chat from '../components/ChatRealtime';
    - Messenger Page Access Token
 4. Click **Save** and **Test Connection**
 
-### Step 3: Test Real-Time Chat
+### Step 2: Test Real-Time Chat
 
 1. Click the **"Messages"** card on Dashboard
 2. Chat interface opens
@@ -326,9 +474,6 @@ import Chat from '../components/ChatRealtime';
 
 ## 📏 Multi-UOM Feature
 
-### Overview
-Sell products in different units with automatic conversion (pieces, boxes, cartons, etc.).
-
 ### Pre-configured Units
 | Code | Name | Myanmar | Example Use |
 |------|------|---------|-------------|
@@ -340,7 +485,7 @@ Sell products in different units with automatic conversion (pieces, boxes, carto
 | DOZ | Dozen | ဒါဇင် | 12 pieces |
 
 ### Quick Setup
-1. Run `supabase/uom_schema.sql` in Supabase SQL Editor
+1. Run `supabase/uom_schema.sql`
 2. Go to **Products** page
 3. Click **"UOM"** button on any product
 4. Add units with conversion factors
@@ -360,78 +505,165 @@ Stock tracked in Pieces. Sell 1 Carton → Deducts 24 Pieces.
 
 ### Features
 - **Bulk Price Update** - Apply percentage-based changes to all products
-- **Individual Editing** - Edit prices directly in the grid
-- **Margin Tracking** - Automatic profit margin calculation
-- **Export** - Export all prices to CSV
+- **Individual Editing** - Edit pricd
+- **Margin Tracking** - Automatic profit on
+- **Es to CSV
 
 ### Usage
-1. Go to **Selling Price** page
-2. Select formula: "Plus (+)" or "Minus (-)"
-3. Enter percentage (e.g., 20 for 20%)
+1. Go to **Selling Price*
+2. Select formula: "Plus (+)" or "Minus ("
+3. Enter percentage (e.g., 20 f
 4. Click **"Apply to All"**
 5. All prices updated based on cost
 
-### Formulas
-- **Plus**: `New Price = Cost × (1 + Percentage/100)`
-- **Minus**: `New Price = Cost × (1 - Percentage/100)`
-- **Margin**: `((Price - Cost) / Cost) × 100`
+as
+- **Plus**: `N)`
+- **Minus**: `New Price /100)`
+- **Margin**: `((Price - Cost) / Cost) × 
+
+--
+
+ng
+
+s
+- **PDt
+- **Thermal Format*
+- **Custo
+- **Print from Orders** - Direct p
+
+### Usage
+```javascript
+
+window.open(
+
+// Get thermal format
+const response = await api.get(`/api/p
+console.log(response.data); // Pler
+```
 
 ---
+
+## 📷 Barcode
+
+### Features
+
+- **Manual Input** - 
+- **Multiple Formats** - EAN, UP, etc.
+- **Sound Feedback** - Beessful scan
+
+s
+- EAN-13, EAN-8
+- UPC-A, UPC-E
+- Code 128, Code 39
+- Codabar
+of 5)
+
+### Usage
+```javascript
+
+
+nner
+  onScacode) => {
+    console.lo);
+    // Search product and add to cart
+
+  onClose={() => se
+/>
+```
+
+---
+
+ons
+
+
+- **Ema
+- **SMS Service** - Twilio ation
+- **Order Confirmatio
+- **Status Updates** - Notify on order st
+- ** is low
+y
+
+###on
+v
+SMTl.com
+
+SMTP_USER=your-email@m
+d
+SMTP_FROM=Myanmar POS <your-.com>
+`
+
+### SMS Configuration
+```env
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+
+```
+
+### Usage
+```javascript
+// Send order confirmation
+await api.post('/notn', {
+  od
+});
+
+// Test email
+il', {
+  email: '
+});
+```
+
+--
 
 ## 🤖 Bot Flow Builder
 
 ### Quick Start
-1. Go to **Bot Flows** page
-2. Click **"+ Create Flow"**
-3. Set trigger (command or keyword)
+ page
+2. Click **"+ Create Flow*
+
 4. Add nodes (Message, Question, Action)
 5. Connect nodes
 6. Click **"💾 Save Flow"**
 7. Click **"▶️ Activate"**
 
-### Node Types
-- **Start** ▶️ - Entry point
-- **Message** 💬 - Send text
-- **Question** ❓ - Ask for input
-- **Action** ⚡ - Show products/orders
-- **Condition** 🔀 - Branch logic
+### Node
+- *
+- *t
 
-### Example Flow
+- *
+ic
+
+w
 ```
-Start → Welcome Message → [Buttons: Products, Orders]
-  ├→ Products → Show Products Action
-  └→ Orders → Show Orders Action
+Start → Welcome Message → [Buttons:
+  ├→ Products → Show Products Ac
+  └→ Orders → Show OAction
 ```
 
----
+
 
 ## 🔒 Security Features
 
 ### Rate Limiting
-- **API Endpoints**: 100 requests / 15 minutes
-- **Authentication**: 5 requests / 15 minutes
-- **Chat Messages**: 30 messages / minute
-- **Webhooks**: 60 requests / minute
+- **API Endpoints**: minutes
+- **Authentication**: 5 requestutes
+- **Chat Messages**:  minute
+s / minute
 
 ### Input Validation
 All endpoints validate:
-- Product data (name, price, cost, stock)
+- Product data (name, price, cost, k)
 - Customer data (name, phone, email)
-- Order data (items, payment method)
-- Chat messages (length, customer ID)
-- UOM data (code, name, conversion factor)
+)
+- C ID)
+ address)
+- Transfer data (stores, iities)
 
-### Security Headers (Helmet.js)
+### Security.js)
 - Content Security Policy
 - X-Frame-Options
 - X-Content-Type-Options
 - Strict-Transport-Security
-- X-XSS-Protection
-
-### Request Logging (Morgan)
-- All HTTP requests logged
-- Useful for debugging and monitoring
-- Production-ready format
+ection
 
 ---
 
@@ -450,348 +682,165 @@ docker-compose logs -f
 docker-compose down
 ```
 
-### Option 2: Traditional Hosting
+### Option 2: Traditional Host
 
-**Backend:**
 ```bash
 # Install dependencies
 npm install
 
 # Build frontend
-cd client && npm install && npm run build && cd ..
+cd client && npm install && npm
 
-# Start with PM2
-pm2 start src/server.js --name myanmar-pos
+# S2
+anmar-pos
 
-# Or start directly
+y
 npm start
 ```
 
-**Frontend:**
-Serve the `client/build` folder with Nginx or any static file server.
-
-**Nginx Configuration:**
+### Nginx Configuration
 ```nginx
-server {
+rver {
     listen 80;
     server_name your-domain.com;
 
     # Frontend
-    location / {
-        root /path/to/client/build;
-        try_files $uri /index.html;
+ation / {
+   
+l;
     }
 
     # Backend API
     location /api {
-        proxy_pass http://localhost:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
+        proxy_pass http://
+        proxy_http_v 1.1;
+        proxy_set_p_upgrade;
+        proxy_set_headerpgrade';
 
-    # WebSocket
+   grade;
+ }
+
+
     location /socket.io {
-        proxy_pass http://localhost:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
+
+   n 1.1;
+rade;
+        proxygrade";
+
 
     # Webhooks
     location /webhooks {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://lochost:3001;
     }
 }
-```
 
-### Environment Variables for Production
-
-```env
-NODE_ENV=production
-PORT=3001
-CLIENT_URL=https://your-domain.com
-SUPABASE_URL=your_production_url
-SUPABASE_ANON_KEY=your_production_key
-SUPABASE_SERVICE_KEY=your_production_service_key
-
-# Bot tokens
-TELEGRAM_BOT_TOKEN=your_token
-VIBER_BOT_TOKEN=your_token
-MESSENGER_PAGE_ACCESS_TOKEN=your_token
-MESSENGER_VERIFY_TOKEN=your_token
-```
 
 ---
 
 ## 🧪 Testing
 
-### Test Real-Time Chat
-
-1. **Open Dashboard**
-   - Go to http://localhost:3000
-   - Click "Messages" card
-   - Check for green Wifi icon (connected)
-
-2. **Send Test Message**
-   - Send message from Telegram/Viber/Messenger
-   - Message appears instantly in dashboard
-   - No 3-second delay!
-
-3. **Test Reply**
-   - Reply from dashboard
-   - Customer receives message in real-time
-
 ### Test API
-
 ```bash
-# Health check
-curl http://localhost:3001/health
+th check
+curlth
 
-# Get chat sessions
-curl http://localhost:3001/api/chat/sessions
+# Get stores
 
-# Get products
-curl http://localhost:3001/api/products
+
+
+curl http://localhost:3001/api/prs
 ```
 
-### Test Rate Limiting
-
+### Test Multi-Store
 ```bash
-# Send 101 requests rapidly
-for i in {1..101}; do
-  curl http://localhost:3001/api/products
-done
+# Create store
+curl -X POST http://localhores \
+  -
+'
 
-# 101st request should be rate limited
+# G
+curl http://localhost:3001/api/stores/
+
+# Create transfer
+curl -X POST http:
+  -H "Content-Ty\
+  -d '{"from_store_id"
 ```
 
 ---
 
 ## 🐛 Troubleshooting
 
-### WebSocket Not Connecting
-
-**Check:**
-1. Backend server is running
-2. CLIENT_URL in .env matches frontend URL
-3. No firewall blocking WebSocket connections
-4. Browser console for connection errors
-
-**Fix:**
-```javascript
-// In ChatRealtime.js, check connection URL
-const socket = io('http://localhost:3001', {
-  transports: ['websocket', 'polling'],
-  reconnection: true
-});
-```
-
-### Messages Not Appearing
-
-**Check:**
-1. Socket.IO events are being emitted (check server logs)
-2. Client is joined to 'admin' room
-3. Customer ID matches in database
-
-**Fix:**
-- Check browser console for errors
-- Check server logs for WebSocket events
-- Verify database has chat_messages and chat_sessions tables
-
-### Rate Limit Too Strict
-
-**Adjust in `src/middleware/rateLimiter.js`:**
-```javascript
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,  // Increase from 100 to 200
-  // ...
-});
-```
-
----
-
-## 📊 Performance Comparison
-
-### Before (Polling)
-- ❌ 3-second delay for new messages
-- ❌ 1,200 HTTP requests per hour
-- ❌ High server load
-- ❌ Battery drain on mobile
-- ❌ No connection status
-
-### After (WebSocket)
-- ✅ Instant message delivery (<100ms)
-- ✅ ~10 HTTP requests per hour
-- ✅ Low server load
-- ✅ Battery efficient
-- ✅ Connection status indicator
-- ✅ Auto-reconnection
-
-### Improvements
-- 📉 99% reduction in HTTP requests
-- 📉 90% reduction in server load
-- 📉 80% reduction in battery usage
-- 📈 95% faster message delivery
-
----
-
-## 🎯 Production Checklist
-
-### Database
-- [ ] Run all schemas (schema.sql, chat_schema.sql, bot_flow_schema.sql, uom_schema.sql)
-- [ ] Enable Row Level Security (RLS) if needed
-- [ ] Set up automated backups
-- [ ] Create database indexes
-
-### Environment
-- [ ] Set `NODE_ENV=production`
-- [ ] Use production Supabase credentials
-- [ ] Configure all bot tokens
-- [ ] Set CLIENT_URL to production URL
-- [ ] Enable HTTPS (required for WebSocket)
-
-### Security
-- [ ] Use strong passwords
-- [ ] Enable CORS properly
-- [ ] Validate all inputs
-- [ ] Rate limit endpoints
-- [ ] Regular security audits
-
-### Monitoring
-- [ ] Set up error logging
-- [ ] Monitor server resources
-- [ ] Track API response times
-- [ ] Set up uptime monitoring
-
-### Testing
-- [ ] Test all bot flows on each channel
-- [ ] Verify chat functionality
-- [ ] Test order processing
-- [ ] Check inventory updates
-- [ ] Validate reports accuracy
-
----
-
-## 📚 Bot Commands
-
-### Telegram & Viber
-- `/start` - Start conversation
-- `/products` - View products (ကုန်ပစ္စည်းများ)
-- `/orders` - View orders (မှာယူမှုများ)
-- `/help` - Get help (အကူအညီ)
-
-### Messenger
-- Type "products" - View products
-- Type "orders" - View your orders
-- Type "help" - Get help
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
----
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
----
-
-## 🆘 Support
-
-### Getting Help
-- Check this README
-- Review code comments
-- Check browser console (F12)
-- Check server logs (`npm run dev`)
-- Review Supabase logs
-
-### Common Issues
-- **Port already in use**: Change PORT in `.env`
-- **Module not found**: Run `npm install`
-- **Database error**: Check Supabase credentials
-- **Chat not showing**: Run `chat_schema.sql`
-- **WebSocket not connecting**: Check CLIENT_URL in `.env`
-
----
-
-## 🌐 Deploy to Render (Free Hosting)
-
-### Quick Deployment (15 minutes)
-
-1. **Push to GitHub**
+ssues
 ```bash
-git add .
-git commit -m "Deploy to Render"
-git push origin main
+# Test 
+node -e "const { Pool } = ); });"
 ```
 
-2. **Deploy Backend**
-   - Go to https://render.com → New + → Web Service
-   - Connect GitHub repo
-   - Name: `myanmar-pos-backend`
-   - Build: `npm install`
-   - Start: `npm start`
-   - Add environment variables (see .env.example)
-   - Deploy!
+### Server Wot
+```bash
+# Check if port is in use
+lsof -i :3001
 
-3. **Deploy Frontend**
-   - New + → Static Site
-   - Build: `cd client && npm install && npm run build`
-   - Publish: `client/build`
-   - Add: `REACT_APP_API_URL=https://your-backend.onrender.com/api`
-   - Deploy!
+# eeded
+kil-9 <PID>
 
-4. **Update Backend**
-   - Set `CLIENT_URL=https://your-frontend.onrender.com`
+# Restart
+npmdev
+```
 
-5. **Setup Database**
-   - Run all SQL files in Supabase SQL Editor
+### WebSocket Not Conng
+- Check CLIENT_URL in 
+- Verify no firewall blocking WebSocket
+- C
 
-### 404 Page with Auto-Redirect
-- Custom 404 page created ✅
-- Auto-redirects to home after 5 seconds
-- Manual navigation buttons
-- Myanmar language support
-- Quick links to main pages
+### Transfer Fails wit
+```bash
+# Check store inventory
+curl http://localhosy
 
-**Files:**
-- `render.yaml` - Render configuration
-- `client/public/_redirects` - SPA routing
-- `client/src/pages/NotFound.js` - 404 page
-- `deploy.sh` - Deployment helper script
+# U
+\
+  -H "Content-Type: 
+'
+```
+
+---
+
+cs
+
+### WebSocket vs Polling
+- 📉 99% reduction in HTTP requests
+oad
+- 📉 80% rery usage
+- 📈 95% faster message delivery (<100ms)
+
+### Dataization
+- Indexes on all foreign keys
+- Pre-aggregated performance views
+- Efficient query functions
+
 
 ---
 
 ## 🚀 Quick Commands
 
 ```bash
-# Development
-npm run dev              # Start backend
-cd client && npm start   # Start frontend
+nt
+npmkend
 
-# Production
-npm start                # Start backend (production)
+
+tion
+npm start             roduction)
 npm run build            # Build frontend
 
 # Database
 npm run seed             # Seed sample data
 
 # Docker
-docker-compose up -d     # Start all services
-docker-compose logs -f   # View logs
-docker-compose down      # Stop all services
+docker-compose up -d ervices
+
+docker-compose down   ervices
 
 # PM2 (Production)
 pm2 start src/server.js --name myanmar-pos
@@ -802,49 +851,98 @@ pm2 stop myanmar-pos
 
 ---
 
-## 📈 Roadmap
+## 📈 Project Progress
 
-### Completed Features
+### ✅ Completed Features (60%)
+- [x] **Phase 1-2**: Core POSnality
 - [x] Real-time chat with WebSocket
-- [x] Multi-UOM support with conversion
-- [x] Selling Price management with bulk updates
-- [x] Bot Flow Builder with visual designer
-- [x] Rate limiting and security enhancements
-- [x] Input validation
-- [x] Request logging
+ion
+- [nt
 
-### Planned Features
-- [ ] User authentication & authorization
-- [ ] Role-based access control
-- [ ] Receipt printing
-- [ ] Barcode scanning
-- [ ] Email/SMS notifications
-- [ ] Multi-store support
-- [ ] Advanced analytics
-- [ ] Mobile app (React Native)
-- [ ] File/image sharing in chat
-- [ ] Voice messages
-- [ ] Chat analytics dashboard
+- [x] **Phaseal)
+l)
+- [x] **Phase 5**: Email/SMS notifications
+s
+
+### 🚧 Planned Feat)
+- [ ] **Ph
+- [ ] **Phase 8**: Automated testing
+- [ ] **Phase 9**: Perf
+- [ ] **Phase 10**t
+- [ ] Role-base
+- [ ] File/image sharingchat
+messages
+- [
+
+---
+
+## 📚 Bot Commands
+
+### Telegram & Viber
+- `/start` - Start conversion
+- `/products` - View products (ကုန်ပစ္စား)
+- `/orders` - View orders (မှာယူျား)
+- `/help` - Get help (အကူ
+
+ssenger
+- Type "products" - View ducts
+- Type "orders" - Vie
+- Type "help" - Get help
+
+---
+
+## 🤝 Contributing
+
+e! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+---
+
+e
+
+MIT License - see LItails
 
 ---
 
 ## 🌟 Credits
 
-Built with modern web technologies for Myanmar businesses.
+sses.
 
-**Tech Stack:**
+
 - Node.js + Express
-- React 18
-- Supabase (PostgreSQL)
+
+- PostgreSQL
 - Socket.IO (WebSocket)
-- Telegram Bot API
+PI
 - Viber Bot API
 - Facebook Messenger API
+nting)
+- Quagga (Barcode scanning)
+- Nodemailer (Email)
+io (SMS)
 
 ---
 
-**Version:** 2.0.0  
-**Last Updated:** November 15, 2025  
-**Status:** ✅ Production Ready with Real-Time Chat
+## 🆘 Support
 
-**Happy Selling! 🎉**
+
+1. ting
+es
+3. Check browser console 
+ errors
+
+### Common Issues
+- **Port already in use**: Change PORT 
+- **Module not found**: Run `npm install`
+- **Database error**: Check DATABASE_UR.env`
+- **Connection refused**: Verify PostgreSng
+nv`
+
+---
+
+**Built with ❤️ for Myanmar businesses**  
+ion**

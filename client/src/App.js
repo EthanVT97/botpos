@@ -1,8 +1,13 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import Analytics from './pages/Analytics';
 import Products from './pages/Products';
 import Categories from './pages/Categories';
 import Customers from './pages/Customers';
@@ -15,32 +20,108 @@ import BotFlows from './pages/BotFlows';
 import FlowBuilder from './pages/FlowBuilder';
 import UOM from './pages/UOM';
 import SellingPrice from './pages/SellingPrice';
+import Stores from './pages/Stores';
+import StoreTransfers from './pages/StoreTransfers';
 import NotFound from './pages/NotFound';
 import './App.css';
 
 function App() {
   return (
     <ErrorBoundary>
-      <Router>
-        <Layout>
+      <AuthProvider>
+        <Router>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/pos" element={<POS />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/categories" element={<Categories />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/bot-flows" element={<BotFlows />} />
-            <Route path="/bot-flows/:id" element={<FlowBuilder />} />
-            <Route path="/uom" element={<UOM />} />
-            <Route path="/sellingprice" element={<SellingPrice />} />
+            {/* Public routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+
+            {/* Private routes */}
+            <Route path="/" element={
+              <PrivateRoute requiredPermission="dashboard">
+                <Layout><Dashboard /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/analytics" element={
+              <PrivateRoute requiredPermission="reports">
+                <Layout><Analytics /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/pos" element={
+              <PrivateRoute requiredPermission="pos">
+                <Layout><POS /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/products" element={
+              <PrivateRoute requiredPermission="products">
+                <Layout><Products /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/categories" element={
+              <PrivateRoute requiredPermission="categories">
+                <Layout><Categories /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/customers" element={
+              <PrivateRoute requiredPermission="customers">
+                <Layout><Customers /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/orders" element={
+              <PrivateRoute requiredPermission="orders">
+                <Layout><Orders /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/inventory" element={
+              <PrivateRoute requiredPermission="inventory">
+                <Layout><Inventory /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/reports" element={
+              <PrivateRoute requiredPermission="reports">
+                <Layout><Reports /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/settings" element={
+              <PrivateRoute requiredPermission="settings">
+                <Layout><Settings /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/bot-flows" element={
+              <PrivateRoute requiredPermission="bot_flows">
+                <Layout><BotFlows /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/bot-flows/:id" element={
+              <PrivateRoute requiredPermission="bot_flows">
+                <Layout><FlowBuilder /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/uom" element={
+              <PrivateRoute requiredPermission="uom">
+                <Layout><UOM /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/sellingprice" element={
+              <PrivateRoute requiredPermission="selling_price">
+                <Layout><SellingPrice /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/stores" element={
+              <PrivateRoute requiredPermission="stores">
+                <Layout><Stores /></Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/store-transfers" element={
+              <PrivateRoute requiredPermission="stores">
+                <Layout><StoreTransfers /></Layout>
+              </PrivateRoute>
+            } />
+            
+            {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </Layout>
-      </Router>
+        </Router>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

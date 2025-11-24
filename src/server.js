@@ -39,6 +39,10 @@ app.use('/webhooks', webhookLimiter);
 app.set('io', io);
 
 // Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/print', require('./routes/print'));
+app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/customers', require('./routes/customers'));
@@ -53,6 +57,8 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/bot-flows', require('./routes/botFlows'));
 app.use('/api/uom', require('./routes/uom'));
 app.use('/api/selling-price', require('./routes/sellingPrice'));
+app.use('/api/stores', require('./routes/stores'));
+app.use('/api/store-transfers', require('./routes/storeTransfers'));
 
 // Bot Webhooks
 app.use('/webhooks/viber', require('./routes/webhooks/viber'));

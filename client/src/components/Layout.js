@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingCart, Package, Users, 
-  ShoppingBag, Warehouse, BarChart3, Settings, Menu, X 
+  ShoppingBag, Warehouse, BarChart3, Settings, Menu, X, Store, ArrowLeftRight
 } from 'lucide-react';
 import './Layout.css';
 
@@ -32,6 +32,7 @@ const Layout = ({ children }) => {
   const menuItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', labelMm: 'ပင်မစာမျက်နှာ' },
     { path: '/pos', icon: ShoppingCart, label: 'POS', labelMm: 'ရောင်းချရန်' },
+    { path: '/analytics', icon: BarChart3, label: 'Analytics', labelMm: 'ခွဲခြမ်းစိတ်ဖြာမှု' },
     { path: '/products', icon: Package, label: 'Products', labelMm: 'ကုန်ပစ္စည်းများ' },
     { path: '/sellingprice', icon: ShoppingBag, label: 'Selling Price', labelMm: 'ရောင်းဈေး' },
     { path: '/categories', icon: ShoppingBag, label: 'Categories', labelMm: 'အမျိုးအစားများ' },
@@ -39,6 +40,8 @@ const Layout = ({ children }) => {
     { path: '/customers', icon: Users, label: 'Customers', labelMm: 'ဖောက်သည်များ' },
     { path: '/orders', icon: ShoppingBag, label: 'Orders', labelMm: 'မှာယူမှုများ' },
     { path: '/inventory', icon: Warehouse, label: 'Inventory', labelMm: 'စာရင်းကိုင်' },
+    { path: '/stores', icon: Store, label: 'Stores', labelMm: 'ဆိုင်များ' },
+    { path: '/store-transfers', icon: ArrowLeftRight, label: 'Transfers', labelMm: 'လွှဲပြောင်းမှု' },
     { path: '/reports', icon: BarChart3, label: 'Reports', labelMm: 'အစီရင်ခံစာများ' },
     { path: '/bot-flows', icon: Package, label: 'Bot Flows', labelMm: 'ဘော့ဖလိုး' },
     { path: '/settings', icon: Settings, label: 'Settings', labelMm: 'ဆက်တင်များ' },

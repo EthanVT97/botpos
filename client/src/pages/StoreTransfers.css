@@ -1,0 +1,277 @@
+.transfers-page {
+  padding: 24px;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 24px 0;
+  border-bottom: 2px solid #e5e7eb;
+  overflow-x: auto;
+}
+
+.filter-tab {
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-weight: 500;
+  color: #6b7280;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.filter-tab:hover {
+  color: #111827;
+  background: #f9fafb;
+}
+
+.filter-tab.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+}
+
+.filter-tab .count {
+  background: #e5e7eb;
+  color: #374151;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.filter-tab.active .count {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.transfers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.transfer-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.transfer-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.transfer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.transfer-route {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.store-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.store-info svg {
+  color: #6b7280;
+}
+
+.store-info strong {
+  display: block;
+  font-size: 15px;
+  color: #111827;
+}
+
+.store-code {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  font-family: 'Courier New', monospace;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.transfer-items {
+  margin-bottom: 12px;
+}
+
+.transfer-items strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #374151;
+  font-size: 14px;
+}
+
+.transfer-items ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.transfer-items li {
+  padding: 6px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.transfer-notes {
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.transfer-notes strong {
+  color: #374151;
+  margin-right: 8px;
+}
+
+.transfer-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #9ca3af;
+  margin-bottom: 12px;
+}
+
+.transfer-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.items-section {
+  margin: 24px 0;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.items-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: #111827;
+}
+
+.add-item-form {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.add-item-form select,
+.add-item-form input {
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.add-item-form input {
+  width: 100px;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.item-row span:first-child {
+  flex: 1;
+  font-weight: 500;
+  color: #111827;
+}
+
+.item-row span:nth-child(2) {
+  color: #6b7280;
+  margin-right: 12px;
+}
+
+.empty-items {
+  text-align: center;
+  padding: 24px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.modal-content.large {
+  max-width: 700px;
+}
+
+@media (max-width: 768px) {
+  .transfer-route {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .transfer-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .add-item-form {
+    grid-template-columns: 1fr;
+  }
+
+  .add-item-form input {
+    width: 100%;
+  }
+
+  .transfer-actions {
+    flex-direction: column;
+  }
+
+  .transfer-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
