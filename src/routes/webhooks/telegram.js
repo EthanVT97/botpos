@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { telegramBot, isTelegramAvailable } = require('../../config/bots');
-const { supabase } = require('../../config/supabase');
+const { pool, query } = require('../../config/supabase');
 const { emitNewMessage, emitSessionUpdate, emitUnreadCountUpdate } = require('../../config/socket');
 const flowExecutor = require('../../utils/flowExecutor');
 const { verifyTelegramWebhook } = require('../../middleware/webhookVerification');

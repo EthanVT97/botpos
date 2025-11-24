@@ -587,8 +587,8 @@ const Settings = () => {
             
             <div style={{ padding: '16px', background: '#f9fafb', borderRadius: '8px' }}>
               <p style={{ marginBottom: '8px', fontSize: '14px' }}><strong>Version:</strong> 1.0.0</p>
-              <p style={{ marginBottom: '8px', fontSize: '14px' }}><strong>Database:</strong> Supabase</p>
-              <p style={{ fontSize: '14px' }}><strong>Backend:</strong> Node.js</p>
+              <p style={{ marginBottom: '8px', fontSize: '14px' }}><strong>Database:</strong> PostgreSQL (Render)</p>
+              <p style={{ fontSize: '14px' }}><strong>Backend:</strong> Node.js + Express</p>
             </div>
           </div>
         </div>

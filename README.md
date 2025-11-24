@@ -161,11 +161,11 @@ MESSENGER_VERIFY_TOKEN=your_verify_token
 export DATABASE_URL="your_database_url_here"
 
 # Run all schemas
-psql "$DATABASE_URL" -f supabase/schema.sql
-psql "$DATABASE_URL" -f supabase/chat_schema.sql
-psql "$DATABASE_URL" -f supabase/bot_flow_schema.sql
-psql "$DATABASE_URL" -f supabase/uom_schema.sql
-psql "$DATABASE_URL" -f supabase/multi_store_schema.sql
+psql "$DATABASE_URL" -f database/schema.sql
+psql "$DATABASE_URL" -f database/chat_schema.sql
+psql "$DATABASE_URL" -f database/bot_flow_schema.sql
+psql "$DATABASE_URL" -f database/uom_schema.sql
+psql "$DATABASE_URL" -f database/multi_store_schema.sql
 
 # Or use the setup script
 ./scripts/setup-multi-store.sh
@@ -227,7 +227,7 @@ myanmar-pos-system/
 │   ├── services/             # Business logic
 │   │   └── notificationService.js
 │   └── server.js             # Main server
-├── supabase/                 # Database schemas
+├── database/                 # Database schemas
 │   ├── schema.sql            # Main POS schema
 │   ├── chat_schema.sql       # Chat feature
 │   ├── bot_flow_schema.sql   # Bot flows
@@ -399,7 +399,7 @@ Manage multiple store locations with centralized control, per-store inventory tr
 ./scripts/setup-multi-store.sh
 
 # Or manually
-psql "$DATABASE_URL" -f supabase/multi_store_schema.sql
+psql "$DATABASE_URL" -f database/multi_store_schema.sql
 ```
 
 ### Creating a Store
@@ -485,7 +485,7 @@ psql "$DATABASE_URL" -f supabase/multi_store_schema.sql
 | DOZ | Dozen | ဒါဇင် | 12 pieces |
 
 ### Quick Setup
-1. Run `supabase/uom_schema.sql`
+1. Run `database/uom_schema.sql`
 2. Go to **Products** page
 3. Click **"UOM"** button on any product
 4. Add units with conversion factors

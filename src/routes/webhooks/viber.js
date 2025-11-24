@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { viberBot, ViberMessage, isViberAvailable } = require('../../config/bots');
-const { supabase } = require('../../config/supabase');
+const { pool, query } = require('../../config/supabase');
 const { emitNewMessage, emitSessionUpdate, emitUnreadCountUpdate } = require('../../config/socket');
 const flowExecutor = require('../../utils/flowExecutor');
 const { verifyViberWebhook } = require('../../middleware/webhookVerification');

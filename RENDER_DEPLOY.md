@@ -65,13 +65,13 @@
 ```bash
 # Copy External Database URL from Render
 psql "postgresql://user:pass@host/db" << 'SQL'
-\i supabase/schema.sql
-\i supabase/chat_schema.sql
-\i supabase/bot_flow_schema.sql
-\i supabase/uom_schema.sql
-\i supabase/multi_store_schema.sql
-\i supabase/analytics_schema.sql
-\i supabase/auth_schema.sql
+\i database/schema.sql
+\i database/chat_schema.sql
+\i database/bot_flow_schema.sql
+\i database/uom_schema.sql
+\i database/multi_store_schema.sql
+\i database/analytics_schema.sql
+\i database/auth_schema.sql
 SQL
 ```
 
@@ -82,11 +82,11 @@ SQL
 4. Run in your terminal
 5. Then run:
    ```sql
-   \i supabase/schema.sql
-   \i supabase/chat_schema.sql
-   \i supabase/bot_flow_schema.sql
-   \i supabase/uom_schema.sql
-   \i supabase/multi_store_schema.sql
+   \i database/schema.sql
+   \i database/chat_schema.sql
+   \i database/bot_flow_schema.sql
+   \i database/uom_schema.sql
+   \i database/multi_store_schema.sql
    ```
 
 ### Step 5: Deploy Frontend

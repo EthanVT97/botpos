@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { supabase } = require('../config/supabase');
+const { pool, query } = require('../config/database');
 const { sellingPriceValidation } = require('../middleware/validator');
 const multer = require('multer');
 const XLSX = require('xlsx');

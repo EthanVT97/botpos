@@ -69,13 +69,13 @@ app.use('/webhooks/messenger', require('./routes/webhooks/messenger'));
 app.get('/health', async (req, res) => {
   try {
     // Check database connection
-    const { supabase } = require('./config/supabase');
-    const { error } = await supabase.from('settings').select('key').limit(1);
+    const { pool } = require('./config/database');
+    await pool.query('SELECT 1');
     
     res.json({ 
       status: 'OK', 
       message: 'Myanmar POS System is running',
-      database: error ? 'disconnected' : 'connected',
+      database: 'connected',
       websocket: io ? 'active' : 'inactive',
       timestamp: new Date().toISOString()
     });
@@ -83,6 +83,7 @@ app.get('/health', async (req, res) => {
     res.status(503).json({ 
       status: 'ERROR', 
       message: 'Service unavailable',
+      database: 'disconnected',
       error: error.message 
     });
   }

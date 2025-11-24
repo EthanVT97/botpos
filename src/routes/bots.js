@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const { supabase } = require('../config/supabase');
+const { pool, query } = require('../config/database');
 
 // Get bot configurations
 router.get('/config', async (req, res) => {

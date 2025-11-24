@@ -11,10 +11,13 @@ const pool = new Pool({
 });
 
 const schemaFiles = [
-  'supabase/schema.sql',
-  'supabase/chat_schema.sql',
-  'supabase/bot_flow_schema.sql',
-  'supabase/uom_schema.sql'
+  'database/schema.sql',
+  'database/chat_schema.sql',
+  'database/bot_flow_schema.sql',
+  'database/uom_schema.sql',
+  'database/multi_store_schema.sql',
+  'database/analytics_schema.sql',
+  'database/auth_schema.sql'
 ];
 
 async function runSchemas() {

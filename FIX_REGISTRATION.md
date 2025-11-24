@@ -18,7 +18,7 @@ Registration is failing because the `auth_schema.sql` hasn't been run on your pr
 psql "postgresql://your_connection_string_here"
 
 # Run auth schema
-\i supabase/auth_schema.sql
+\i database/auth_schema.sql
 
 # Verify tables
 \dt
@@ -38,7 +38,7 @@ psql "postgresql://your_connection_string_here"
 4. Run this command:
 
 ```bash
-psql "your_connection_string" -f supabase/auth_schema.sql
+psql "your_connection_string" -f database/auth_schema.sql
 ```
 
 ### Option 3: Manual SQL (if psql not available)
@@ -46,7 +46,7 @@ psql "your_connection_string" -f supabase/auth_schema.sql
 1. Go to Render dashboard → your database
 2. Use a PostgreSQL client (DBeaver, pgAdmin, etc.)
 3. Connect with the External Database URL
-4. Run the contents of `supabase/auth_schema.sql`
+4. Run the contents of `database/auth_schema.sql`
 
 ## What This Does
 

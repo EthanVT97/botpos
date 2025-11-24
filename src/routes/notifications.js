@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { supabase } = require('../config/supabase');
+const { pool, query } = require('../config/database');
 const { authenticate, authorize } = require('../middleware/auth');
 const notificationService = require('../services/notificationService');
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { supabase } = require('../config/supabase');
+const { pool, query } = require('../config/database');
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -36,13 +36,12 @@ router.post('/register',
       const { email, password, full_name, role = 'cashier' } = req.body;
 
       // Check if user already exists
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single();
+      const existingUser = await query(
+        'SELECT id FROM users WHERE email = $1',
+        [email]
+      );
 
-      if (existingUser) {
+      if (existingUser.rows.length > 0) {
         return res.status(409).json({
           success: false,
           error: 'User with this email already exists'
@@ -54,29 +53,24 @@ router.post('/register',
       const password_hash = await bcrypt.hash(password, salt);
 
       // Create user
-      const { data: user, error } = await supabase
-        .from('users')
-        .insert([{
-          email,
-          full_name,
-          role,
-          password_hash,
-          is_active: true
-        }])
-        .select('id, email, full_name, role, created_at')
-        .single();
+      const result = await query(
+        `INSERT INTO users (email, full_name, role, password_hash, is_active)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, email, full_name, role, created_at`,
+        [email, full_name, role, password_hash, true]
+      );
 
-      if (error) throw error;
+      const user = result.rows[0];
 
       // Generate tokens
       const accessToken = generateAccessToken(user);
       const refreshToken = generateRefreshToken(user);
 
       // Save refresh token
-      await supabase
-        .from('users')
-        .update({ refresh_token: refreshToken })
-        .eq('id', user.id);
+      await query(
+        'UPDATE users SET refresh_token = $1 WHERE id = $2',
+        [refreshToken, user.id]
+      );
 
       res.status(201).json({
         success: true,
@@ -126,13 +120,14 @@ router.post('/login',
       const { email, password } = req.body;
 
       // Get user
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .single();
+      const result = await query(
+        'SELECT * FROM users WHERE email = $1',
+        [email]
+      );
 
-      if (error || !user) {
+      const user = result.rows[0];
+
+      if (!user) {
         return res.status(401).json({
           success: false,
           error: 'Invalid email or password'
@@ -162,20 +157,18 @@ router.post('/login',
       const refreshToken = generateRefreshToken(user);
 
       // Update last login and refresh token
-      await supabase
-        .from('users')
-        .update({
-          last_login: new Date(),
-          refresh_token: refreshToken
-        })
-        .eq('id', user.id);
+      await query(
+        'UPDATE users SET last_login = $1, refresh_token = $2 WHERE id = $3',
+        [new Date(), refreshToken, user.id]
+      );
 
       // Get role permissions
-      const { data: role } = await supabase
-        .from('roles')
-        .select('permissions')
-        .eq('name', user.role)
-        .single();
+      const roleResult = await query(
+        'SELECT permissions FROM roles WHERE name = $1',
+        [user.role]
+      );
+
+      const role = roleResult.rows[0];
 
       res.json({
         success: true,

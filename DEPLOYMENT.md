@@ -83,13 +83,13 @@
 psql "<external_database_url>"
 
 # Run schemas
-\i supabase/schema.sql
-\i supabase/chat_schema.sql
-\i supabase/bot_flow_schema.sql
-\i supabase/uom_schema.sql
-\i supabase/multi_store_schema.sql
-\i supabase/analytics_schema.sql
-\i supabase/auth_schema.sql
+\i database/schema.sql
+\i database/chat_schema.sql
+\i database/bot_flow_schema.sql
+\i database/uom_schema.sql
+\i database/multi_store_schema.sql
+\i database/analytics_schema.sql
+\i database/auth_schema.sql
 
 # Exit
 \q
@@ -158,11 +158,11 @@ nano .env  # Edit with your values
 
 # Setup database
 export DATABASE_URL="your_database_url"
-psql "$DATABASE_URL" -f supabase/schema.sql
-psql "$DATABASE_URL" -f supabase/chat_schema.sql
-psql "$DATABASE_URL" -f supabase/bot_flow_schema.sql
-psql "$DATABASE_URL" -f supabase/uom_schema.sql
-psql "$DATABASE_URL" -f supabase/multi_store_schema.sql
+psql "$DATABASE_URL" -f database/schema.sql
+psql "$DATABASE_URL" -f database/chat_schema.sql
+psql "$DATABASE_URL" -f database/bot_flow_schema.sql
+psql "$DATABASE_URL" -f database/uom_schema.sql
+psql "$DATABASE_URL" -f database/multi_store_schema.sql
 
 # Start with PM2
 npm install -g pm2
