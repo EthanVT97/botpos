@@ -12,13 +12,11 @@ services:
         value: production
       - key: PORT
         value: 3001
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SUPABASE_SERVICE_KEY
+      - key: DATABASE_URL
         sync: false
       - key: CLIENT_URL
+        sync: false
+      - key: JWT_SECRET
         sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
@@ -28,6 +26,20 @@ services:
         sync: false
       - key: MESSENGER_VERIFY_TOKEN
         sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
     healthCheckPath: /health
 
   # Frontend Static Site
@@ -36,7 +48,13 @@ services:
     env: static
     region: singapore
     plan: free
-    buildCommand: cd client && npm install && npm run build
+    buildCommand: |
+      if [ -d "client" ]; then
+        cd client && npm install && npm run build
+      else
+        echo "Client directory not found"
+        exit 1
+      fi
     staticPublishPath: ./client/build
     routes:
       - type: rewrite
