@@ -45,12 +45,18 @@ const Stores = () => {
     try {
       if (editingStore) {
         await api.put(`/stores/${editingStore.id}`, formData);
+        alert('Store updated successfully! ✅');
       } else {
         await api.post('/stores', formData);
+        alert('Store created successfully! ✅');
       }
       setShowModal(false);
       resetForm();
-      loadStores();
+      
+      // Force reload with delay
+      setTimeout(() => {
+        loadStores();
+      }, 500);
     } catch (error) {
       console.error('Error saving store:', error);
       alert(error.response?.data?.error || 'Failed to save store');

@@ -31,13 +31,19 @@ const Customers = () => {
     try {
       if (editingCustomer) {
         await updateCustomer(editingCustomer.id, formData);
+        alert('Customer updated successfully! ✅');
       } else {
         await createCustomer(formData);
+        alert('Customer created successfully! ✅');
       }
       setShowModal(false);
       setEditingCustomer(null);
       setFormData({ name: '', phone: '', email: '', address: '', viber_id: '', telegram_id: '', messenger_id: '' });
-      await loadCustomers();
+      
+      // Force reload with delay
+      setTimeout(() => {
+        loadCustomers();
+      }, 500);
     } catch (error) {
       console.error('Error saving customer:', error);
       alert('Failed to save customer: ' + (error.response?.data?.error || error.message));

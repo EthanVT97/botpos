@@ -61,13 +61,19 @@ const UOM = () => {
     try {
       if (editingUOM) {
         await updateUOM(editingUOM.id, formData);
+        alert('UOM updated successfully! ✅');
       } else {
         await createUOM(formData);
+        alert('UOM created successfully! ✅');
       }
       setShowModal(false);
       setEditingUOM(null);
       setFormData({ code: '', name: '', name_mm: '', description: '' });
-      await loadUOMs();
+      
+      // Force reload with delay
+      setTimeout(() => {
+        loadUOMs();
+      }, 500);
     } catch (error) {
       console.error('Error saving UOM:', error);
       alert('Failed to save UOM: ' + (error.response?.data?.error || error.message));

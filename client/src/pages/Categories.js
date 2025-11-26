@@ -95,17 +95,24 @@ const Categories = () => {
     try {
       if (editingCategory) {
         await updateCategory(editingCategory.id, formData);
+        alert('Category updated successfully! ✅');
       } else {
         await createCategory(formData);
+        alert('Category created successfully! ✅');
       }
       setShowModal(false);
       setEditingCategory(null);
       setFormData({ name: '', name_mm: '', description: '' });
-      loadCategories();
+      
+      // Force reload with delay
+      setTimeout(() => {
+        loadCategories();
+      }, 500);
     } catch (error) {
       console.error('Error:', error);
+      alert('Error: ' + (error.response?.data?.error || error.message));
     } finally {
-      setLoading(false); // Set loading to false after fetching (success or error)
+      setLoading(false);
     }
   };
 
