@@ -195,26 +195,37 @@ const Products = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       if (editingProduct) {
         await updateProduct(editingProduct.id, formData);
+        alert('Product updated successfully! ✅');
       } else {
         await createProduct(formData);
+        alert('Product created successfully! ✅');
       }
+      
+      // Close modal and reset form
       setShowModal(false);
       setEditingProduct(null);
       setFormData({
         name: '', name_mm: '', description: '', price: '', cost: '',
-        category_id: '', sku: '', barcode: '', stock_quantity: '', image_url: ''
+        category_id: '', sku: '', barcode: '', stock_quantity: '', image_url: '', base_uom_id: ''
       });
-      loadProducts();
+      
+      // Force reload products with a small delay to ensure backend has processed
+      setTimeout(() => {
+        loadProducts();
+      }, 500);
+      
     } catch (error) {
       setAlertShow(true);
       setErrorDelMessage(true);
       console.error('Error saving product:', error);
-      setErrorMessage(error.message)
+      setErrorMessage(error.response?.data?.error || error.message);
+      alert('Error: ' + (error.response?.data?.error || error.message));
     } finally {
-      setLoading(false); // Set loading to false after fetching (success or error)
+      setLoading(false);
     }
   };
 

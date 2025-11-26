@@ -10,7 +10,10 @@ const api = axios.create({
 });
 
 // Products
-export const getProducts = () => api.get('/products');
+export const getProducts = () => api.get('/products', { 
+  headers: { 'Cache-Control': 'no-cache' },
+  params: { _t: Date.now() } // Cache busting
+});
 export const getProduct = (id) => api.get(`/products/${id}`);
 export const createProduct = (data) => api.post('/products', data);
 export const updateProduct = (id, data) => api.put(`/products/${id}`, data);
