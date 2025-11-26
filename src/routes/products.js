@@ -36,7 +36,11 @@ router.get('/:id', async (req, res) => {
 // Create product
 router.post('/', async (req, res) => {
   try {
-    const { name, name_mm, description, price, cost, category_id, sku, barcode, stock_quantity, image_url, base_uom_id } = req.body;
+    let { name, name_mm, description, price, cost, category_id, sku, barcode, stock_quantity, image_url, base_uom_id } = req.body;
+    
+    // Convert empty strings to null for UUID fields
+    category_id = category_id && category_id.trim() !== '' ? category_id : null;
+    base_uom_id = base_uom_id && base_uom_id.trim() !== '' ? base_uom_id : null;
     
     // Validate required fields
     if (!name || name.trim() === '') {
@@ -93,11 +97,11 @@ router.post('/', async (req, res) => {
         description,
         price: parseFloat(price),
         cost: cost ? parseFloat(cost) : null,
-        category_id,
-        sku: sku?.trim(),
-        barcode: barcode?.trim(),
+        category_id: category_id || null,
+        sku: sku?.trim() || null,
+        barcode: barcode?.trim() || null,
         stock_quantity: stock_quantity || 0,
-        image_url,
+        image_url: image_url || null,
         base_uom_id: base_uom_id || null
       }])
       .select()
@@ -120,10 +124,14 @@ router.put('/:id', async (req, res) => {
     // Allow updating all fields including base_uom_id
     const updateData = { ...req.body };
     
-    // Ensure base_uom_id is handled properly (can be null)
-    if (updateData.base_uom_id === '') {
-      updateData.base_uom_id = null;
-    }
+    // Convert empty strings to null for UUID fields
+    if (updateData.category_id === '') updateData.category_id = null;
+    if (updateData.base_uom_id === '') updateData.base_uom_id = null;
+    
+    // Clean up other fields
+    if (updateData.sku === '') updateData.sku = null;
+    if (updateData.barcode === '') updateData.barcode = null;
+    if (updateData.image_url === '') updateData.image_url = null;
     
     const { data, error } = await supabase
       .from('products')
