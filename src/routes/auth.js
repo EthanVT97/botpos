@@ -298,18 +298,34 @@ router.post('/logout', authenticate, async (req, res) => {
  */
 router.get('/me', authenticate, async (req, res) => {
   try {
+    // Get user details
+    const userResult = await query(
+      'SELECT id, email, full_name, role, is_active, created_at FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const user = userResult.rows[0];
+
     // Get role permissions
-    const { data: role } = await supabase
-      .from('roles')
-      .select('permissions')
-      .eq('name', req.user.role)
-      .single();
+    const roleResult = await query(
+      'SELECT permissions FROM roles WHERE name = $1',
+      [user.role]
+    );
+
+    const role = roleResult.rows[0];
 
     res.json({
       success: true,
       data: {
         user: {
-          ...req.user,
+          ...user,
           permissions: role?.permissions || {}
         }
       }

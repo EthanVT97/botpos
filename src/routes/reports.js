@@ -2,6 +2,44 @@ const express = require('express');
 const router = express.Router();
 const { pool, query, supabase } = require('../config/database');
 
+// Sales report (general endpoint)
+router.get('/sales', async (req, res) => {
+  try {
+    const { start_date, end_date, period = 'daily' } = req.query;
+    
+    const startDate = start_date || new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
+    const endDate = end_date || new Date().toISOString().split('T')[0];
+
+    const result = await query(`
+      SELECT 
+        COUNT(*) as total_orders,
+        COALESCE(SUM(total_amount), 0) as total_revenue,
+        COALESCE(SUM(discount), 0) as total_discount,
+        COALESCE(SUM(tax), 0) as total_tax,
+        COALESCE(AVG(total_amount), 0) as avg_order_value
+      FROM orders
+      WHERE status = 'completed'
+        AND created_at >= $1
+        AND created_at <= $2
+    `, [`${startDate}T00:00:00`, `${endDate}T23:59:59`]);
+
+    const data = result.rows[0];
+    const summary = {
+      period: { start_date: startDate, end_date: endDate },
+      total_orders: parseInt(data.total_orders || 0),
+      total_revenue: parseFloat(data.total_revenue || 0),
+      total_discount: parseFloat(data.total_discount || 0),
+      total_tax: parseFloat(data.total_tax || 0),
+      avg_order_value: parseFloat(data.avg_order_value || 0)
+    };
+
+    res.json({ success: true, data: summary });
+  } catch (error) {
+    console.error('Error fetching sales report:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Daily sales report
 router.get('/daily-sales', async (req, res) => {
   try {

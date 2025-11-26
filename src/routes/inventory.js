@@ -2,6 +2,26 @@ const express = require('express');
 const router = express.Router();
 const { pool, query, supabase } = require('../config/database');
 
+// Get all inventory (products with stock)
+router.get('/', async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT 
+        p.*,
+        c.name as category_name,
+        c.name_mm as category_name_mm
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      ORDER BY p.name ASC
+    `);
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching inventory:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get all inventory movements
 router.get('/movements', async (req, res) => {
   try {
