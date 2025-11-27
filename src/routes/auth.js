@@ -217,19 +217,19 @@ router.post('/refresh',
       }
 
       // Get user and verify refresh token
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', decoded.id)
-        .eq('refresh_token', refreshToken)
-        .single();
+      const userResult = await query(
+        'SELECT * FROM users WHERE id = $1 AND refresh_token = $2',
+        [decoded.id, refreshToken]
+      );
 
-      if (error || !user) {
+      if (!userResult.rows || userResult.rows.length === 0) {
         return res.status(401).json({
           success: false,
           error: 'Invalid refresh token'
         });
       }
+
+      const user = userResult.rows[0];
 
       if (!user.is_active) {
         return res.status(403).json({
@@ -243,10 +243,10 @@ router.post('/refresh',
       const newRefreshToken = generateRefreshToken(user);
 
       // Update refresh token
-      await supabase
-        .from('users')
-        .update({ refresh_token: newRefreshToken })
-        .eq('id', user.id);
+      await query(
+        'UPDATE users SET refresh_token = $1 WHERE id = $2',
+        [newRefreshToken, user.id]
+      );
 
       res.json({
         success: true,
@@ -273,10 +273,10 @@ router.post('/refresh',
 router.post('/logout', authenticate, async (req, res) => {
   try {
     // Clear refresh token
-    await supabase
-      .from('users')
-      .update({ refresh_token: null })
-      .eq('id', req.user.id);
+    await query(
+      'UPDATE users SET refresh_token = NULL WHERE id = $1',
+      [req.user.id]
+    );
 
     res.json({
       success: true,
@@ -363,11 +363,12 @@ router.put('/change-password',
       const { currentPassword, newPassword } = req.body;
 
       // Get user with password
-      const { data: user } = await supabase
-        .from('users')
-        .select('password_hash')
-        .eq('id', req.user.id)
-        .single();
+      const userResult = await query(
+        'SELECT password_hash FROM users WHERE id = $1',
+        [req.user.id]
+      );
+      
+      const user = userResult.rows[0];
 
       // Verify current password
       const isValid = await bcrypt.compare(currentPassword, user.password_hash);
@@ -384,10 +385,10 @@ router.put('/change-password',
       const newPasswordHash = await bcrypt.hash(newPassword, salt);
 
       // Update password
-      await supabase
-        .from('users')
-        .update({ password_hash: newPasswordHash })
-        .eq('id', req.user.id);
+      await query(
+        'UPDATE users SET password_hash = $1 WHERE id = $2',
+        [newPasswordHash, req.user.id]
+      );
 
       res.json({
         success: true,
@@ -415,11 +416,12 @@ router.post('/forgot-password',
       const { email } = req.body;
 
       // Check if user exists
-      const { data: user } = await supabase
-        .from('users')
-        .select('id, email, full_name')
-        .eq('email', email)
-        .single();
+      const userResult = await query(
+        'SELECT id, email, full_name FROM users WHERE email = $1',
+        [email]
+      );
+      
+      const user = userResult.rows[0];
 
       // Always return success to prevent email enumeration
       if (!user) {
@@ -494,10 +496,10 @@ router.post('/reset-password',
       const passwordHash = await bcrypt.hash(newPassword, salt);
 
       // Update password
-      await supabase
-        .from('users')
-        .update({ password_hash: passwordHash })
-        .eq('id', decoded.id);
+      await query(
+        'UPDATE users SET password_hash = $1 WHERE id = $2',
+        [passwordHash, decoded.id]
+      );
 
       res.json({
         success: true,
