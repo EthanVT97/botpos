@@ -160,11 +160,25 @@ router.delete('/:id', async (req, res) => {
 // Get store inventory
 router.get('/:id/inventory', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .rpc('get_store_inventory', { p_store_id: req.params.id });
+    const result = await pool.query(`
+      SELECT 
+        p.id as product_id,
+        p.name,
+        p.name_mm,
+        p.sku,
+        COALESCE(si.quantity, 0) as quantity,
+        COALESCE(si.min_quantity, 10) as min_quantity,
+        si.max_quantity,
+        p.price,
+        (COALESCE(si.quantity, 0) <= COALESCE(si.min_quantity, 10)) as is_low_stock,
+        si.last_restocked_at
+      FROM products p
+      LEFT JOIN store_inventory si ON p.id = si.product_id AND si.store_id = $1
+      WHERE p.is_active = TRUE
+      ORDER BY p.name
+    `, [req.params.id]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching store inventory:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -202,14 +216,27 @@ router.post('/:id/inventory', async (req, res) => {
 // Get store performance
 router.get('/:id/performance', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('v_store_performance')
-      .select('*')
-      .eq('store_id', req.params.id)
-      .single();
+    const result = await pool.query(`
+      SELECT 
+        s.id AS store_id,
+        s.name AS store_name,
+        s.code AS store_code,
+        COUNT(DISTINCT o.id) AS total_orders,
+        COALESCE(SUM(o.total_amount), 0) AS total_sales,
+        COALESCE(AVG(o.total_amount), 0) AS avg_order_value,
+        COUNT(DISTINCT o.customer_id) AS total_customers,
+        COUNT(DISTINCT si.product_id) AS total_products,
+        COALESCE(SUM(si.quantity * p.price), 0) AS total_inventory_value,
+        COUNT(DISTINCT CASE WHEN si.quantity <= COALESCE(si.min_quantity, 10) THEN si.product_id END) AS low_stock_items
+      FROM stores s
+      LEFT JOIN orders o ON s.id = o.store_id
+      LEFT JOIN store_inventory si ON s.id = si.store_id
+      LEFT JOIN products p ON si.product_id = p.id
+      WHERE s.id = $1
+      GROUP BY s.id, s.name, s.code
+    `, [req.params.id]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows[0] || {} });
   } catch (error) {
     console.error('Error fetching store performance:', error);
     res.status(500).json({ success: false, error: error.message });

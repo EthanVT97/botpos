@@ -302,6 +302,43 @@ node scripts/fix-permissions.js
 - ✅ Performance Monitoring
 - ✅ API Response Caching
 
+## 🏪 Store Management Features
+
+### View Inventory
+View detailed inventory for any store with:
+- Product names (English & Myanmar)
+- SKU codes and stock quantities
+- Min/max stock levels
+- Product prices and total value
+- Color-coded status badges:
+  - 🟡 **Low Stock** - At or below minimum level
+  - 🟢 **Good** - Normal stock levels
+  - 🔵 **Overstock** - At or above maximum level
+
+### View Performance
+Comprehensive analytics dashboard showing:
+- 💰 **Total Sales** - Revenue generated
+- 📋 **Total Orders** - Orders processed
+- 📦 **Total Products** - Products in inventory
+- 👥 **Total Customers** - Unique customers served
+- **Average Order Value** - Per order average
+- **Total Inventory Value** - Value of all stock
+- **Low Stock Items** - Products needing restock
+
+### Activate/Deactivate Store
+Temporarily disable stores without losing data:
+- Inactive stores won't accept new orders
+- All historical data preserved
+- Can be reactivated anytime
+- Better than deleting (maintains audit trail)
+- Visual indicators (badges, opacity, borders)
+
+**Why use this?**
+- Seasonal store operations
+- Temporary maintenance closures
+- Prevent new orders while keeping history
+- Compliance and audit requirements
+
 ## 🗄️ Database
 
 ### Test Data Included ✅
@@ -404,8 +441,11 @@ REACT_APP_API_URL=http://localhost:3001/api
 ### Stores
 - `GET /api/stores` - Get all stores
 - `POST /api/stores` - Create store
-- `GET /api/stores/:id/inventory` - Get store inventory
+- `PUT /api/stores/:id` - Update store (including activate/deactivate)
+- `DELETE /api/stores/:id` - Delete store
+- `GET /api/stores/:id/inventory` - Get store inventory with product details
 - `POST /api/stores/:id/inventory` - Update store inventory
+- `GET /api/stores/:id/performance` - Get store performance metrics
 
 ### Store Transfers
 - `GET /api/store-transfers` - Get all transfers
@@ -442,7 +482,7 @@ REACT_APP_API_URL=http://localhost:3001/api
 - `/inventory` - Inventory Management
 - `/uom` - Unit of Measure Management ✅
 - `/sellingprice` - Selling Price Management
-- `/stores` - Store Management
+- `/stores` - Store Management (View Inventory, Performance, Activate/Deactivate)
 - `/store-transfers` - Store Transfer Management ✅
 - `/reports` - Reports ✅
 - `/bot-flows` - Bot Flow Builder
@@ -937,6 +977,11 @@ Built with modern web technologies for Myanmar businesses.
 
 ### Multi-Store Management
 Manage multiple store locations with independent inventory, transfers between stores, and performance tracking per store.
+
+**Store Features:**
+- 📦 **View Inventory** - See all products and stock levels for each store with color-coded status badges
+- 📊 **View Performance** - Comprehensive analytics dashboard with sales, orders, customers, and inventory metrics
+- 🔄 **Activate/Deactivate** - Temporarily disable stores without deleting data (preserves order history)
 
 ### Real-time Everything
 WebSocket-powered real-time notifications, data sync, and chat messaging for instant updates across all users.

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, MapPin, Phone, Mail, User, TrendingUp, Package, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, MapPin, Phone, Mail, User, TrendingUp, Package, AlertCircle, X } from 'lucide-react';
 import api from '../api/api';
 import './Stores.css';
 
@@ -7,6 +7,13 @@ const Stores = () => {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [showPerformanceModal, setShowPerformanceModal] = useState(false);
+  const [selectedStore, setSelectedStore] = useState(null);
+  const [storeInventory, setStoreInventory] = useState([]);
+  const [storePerformance, setStorePerformance] = useState(null);
+  const [loadingInventory, setLoadingInventory] = useState(false);
+  const [loadingPerformance, setLoadingPerformance] = useState(false);
   const [editingStore, setEditingStore] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -93,12 +100,54 @@ const Stores = () => {
   };
 
   const toggleActive = async (store) => {
+    const action = store.is_active ? 'deactivate' : 'activate';
+    if (!window.confirm(`Are you sure you want to ${action} ${store.name}?`)) return;
+    
     try {
       await api.put(`/stores/${store.id}`, { is_active: !store.is_active });
+      alert(`Store ${action}d successfully! ✅`);
       loadStores();
     } catch (error) {
       console.error('Error updating store:', error);
       alert('Failed to update store status');
+    }
+  };
+
+  const viewInventory = async (store) => {
+    setSelectedStore(store);
+    setShowInventoryModal(true);
+    setLoadingInventory(true);
+    
+    try {
+      const response = await api.get(`/stores/${store.id}/inventory`);
+      if (response.data.success) {
+        setStoreInventory(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading inventory:', error);
+      alert('Failed to load inventory');
+      setStoreInventory([]);
+    } finally {
+      setLoadingInventory(false);
+    }
+  };
+
+  const viewPerformance = async (store) => {
+    setSelectedStore(store);
+    setShowPerformanceModal(true);
+    setLoadingPerformance(true);
+    
+    try {
+      const response = await api.get(`/stores/${store.id}/performance`);
+      if (response.data.success) {
+        setStorePerformance(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading performance:', error);
+      alert('Failed to load performance data');
+      setStorePerformance(null);
+    } finally {
+      setLoadingPerformance(false);
     }
   };
 
@@ -202,17 +251,34 @@ const Stores = () => {
               )}
             </div>
 
+            <div className="store-stats">
+              <div className="stat-item">
+                <Package size={16} color="#3b82f6" />
+                <div>
+                  <div className="stat-value">{store.product_count || 0}</div>
+                  <div className="stat-label">Products</div>
+                </div>
+              </div>
+              <div className="stat-item">
+                <TrendingUp size={16} color="#10b981" />
+                <div>
+                  <div className="stat-value">{store.total_inventory || 0}</div>
+                  <div className="stat-label">Total Stock</div>
+                </div>
+              </div>
+            </div>
+
             <div className="store-footer">
               <button 
                 className="btn-secondary btn-sm"
-                onClick={() => window.location.href = `/stores/${store.id}/inventory`}
+                onClick={() => viewInventory(store)}
               >
                 <Package size={16} />
                 View Inventory
               </button>
               <button 
                 className="btn-secondary btn-sm"
-                onClick={() => window.location.href = `/stores/${store.id}/performance`}
+                onClick={() => viewPerformance(store)}
               >
                 <TrendingUp size={16} />
                 Performance
@@ -240,6 +306,157 @@ const Stores = () => {
         </div>
       )}
 
+      {/* Inventory Modal */}
+      {showInventoryModal && (
+        <div className="modal-overlay" onClick={() => setShowInventoryModal(false)}>
+          <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📦 {selectedStore?.name} - Inventory</h2>
+              <button className="btn-close" onClick={() => setShowInventoryModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              {loadingInventory ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <div className="spinner"></div>
+                  <p>Loading inventory...</p>
+                </div>
+              ) : storeInventory.length > 0 ? (
+                <div className="inventory-table">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>SKU</th>
+                        <th>Stock</th>
+                        <th>Min</th>
+                        <th>Max</th>
+                        <th>Price</th>
+                        <th>Value</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {storeInventory.map((item) => (
+                        <tr key={item.product_id}>
+                          <td>
+                            <div>
+                              <div className="product-name">{item.name}</div>
+                              {item.name_mm && <div className="product-name-mm">{item.name_mm}</div>}
+                            </div>
+                          </td>
+                          <td>{item.sku}</td>
+                          <td>
+                            <span className={`stock-badge ${
+                              item.quantity <= (item.min_quantity || 10) ? 'low-stock' : 
+                              item.quantity >= (item.max_quantity || 100) ? 'high-stock' : 
+                              'in-stock'
+                            }`}>
+                              {item.quantity}
+                            </span>
+                          </td>
+                          <td>{item.min_quantity || '-'}</td>
+                          <td>{item.max_quantity || '-'}</td>
+                          <td>{item.price?.toLocaleString() || 0} Ks</td>
+                          <td>{((item.quantity || 0) * (item.price || 0)).toLocaleString()} Ks</td>
+                          <td>
+                            {item.quantity <= (item.min_quantity || 10) ? (
+                              <span className="badge badge-warning">Low Stock</span>
+                            ) : item.quantity >= (item.max_quantity || 100) ? (
+                              <span className="badge badge-danger">Overstock</span>
+                            ) : (
+                              <span className="badge badge-success">Good</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                  <Package size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                  <p>No inventory data available</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Performance Modal */}
+      {showPerformanceModal && (
+        <div className="modal-overlay" onClick={() => setShowPerformanceModal(false)}>
+          <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📊 {selectedStore?.name} - Performance</h2>
+              <button className="btn-close" onClick={() => setShowPerformanceModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              {loadingPerformance ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <div className="spinner"></div>
+                  <p>Loading performance data...</p>
+                </div>
+              ) : storePerformance ? (
+                <div className="performance-dashboard">
+                  <div className="performance-stats">
+                    <div className="stat-card">
+                      <div className="stat-icon">💰</div>
+                      <div className="stat-info">
+                        <div className="stat-value">{storePerformance.total_sales?.toLocaleString() || 0} Ks</div>
+                        <div className="stat-label">Total Sales</div>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon">📋</div>
+                      <div className="stat-info">
+                        <div className="stat-value">{storePerformance.total_orders || 0}</div>
+                        <div className="stat-label">Total Orders</div>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon">📦</div>
+                      <div className="stat-info">
+                        <div className="stat-value">{storePerformance.total_products || 0}</div>
+                        <div className="stat-label">Products</div>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon">👥</div>
+                      <div className="stat-info">
+                        <div className="stat-value">{storePerformance.total_customers || 0}</div>
+                        <div className="stat-label">Customers</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="performance-metrics">
+                    <div className="metric-row">
+                      <span className="metric-label">Average Order Value:</span>
+                      <span className="metric-value">{storePerformance.avg_order_value?.toLocaleString() || 0} Ks</span>
+                    </div>
+                    <div className="metric-row">
+                      <span className="metric-label">Total Inventory Value:</span>
+                      <span className="metric-value">{storePerformance.total_inventory_value?.toLocaleString() || 0} Ks</span>
+                    </div>
+                    <div className="metric-row">
+                      <span className="metric-label">Low Stock Items:</span>
+                      <span className="metric-value badge badge-warning">{storePerformance.low_stock_items || 0}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                  <TrendingUp size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                  <p>No performance data available</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Store Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => { setShowModal(false); resetForm(); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
