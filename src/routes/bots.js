@@ -39,7 +39,7 @@ router.get('/config', async (req, res) => {
 // Setup Telegram webhook
 router.post('/telegram/setup', async (req, res) => {
   try {
-    const { token, domain } = req.body;
+    let { token, domain } = req.body;
 
     if (!token || !domain) {
       return res.status(400).json({ 
@@ -48,7 +48,18 @@ router.post('/telegram/setup', async (req, res) => {
       });
     }
 
+    // Clean domain - remove trailing slashes and any path
+    domain = domain.replace(/\/+$/, ''); // Remove trailing slashes
+    domain = domain.replace(/\/webhooks.*$/, ''); // Remove any webhook path
+    domain = domain.replace(/\/telegram.*$/, ''); // Remove any telegram path
+
     const webhookUrl = `${domain}/webhooks/telegram`;
+
+    console.log('🔧 Setting up Telegram webhook:', {
+      domain,
+      webhookUrl,
+      timestamp: new Date().toISOString()
+    });
 
     // Set webhook via Telegram API
     const response = await axios.post(
@@ -94,7 +105,7 @@ router.post('/telegram/setup', async (req, res) => {
 // Setup Viber webhook
 router.post('/viber/setup', async (req, res) => {
   try {
-    const { token, domain } = req.body;
+    let { token, domain } = req.body;
 
     if (!token || !domain) {
       return res.status(400).json({ 
@@ -103,7 +114,18 @@ router.post('/viber/setup', async (req, res) => {
       });
     }
 
+    // Clean domain - remove trailing slashes and any path
+    domain = domain.replace(/\/+$/, ''); // Remove trailing slashes
+    domain = domain.replace(/\/webhooks.*$/, ''); // Remove any webhook path
+    domain = domain.replace(/\/viber.*$/, ''); // Remove any viber path
+
     const webhookUrl = `${domain}/webhooks/viber`;
+
+    console.log('🔧 Setting up Viber webhook:', {
+      domain,
+      webhookUrl,
+      timestamp: new Date().toISOString()
+    });
 
     // Set webhook via Viber API
     const response = await axios.post(
@@ -346,6 +368,8 @@ router.delete('/:platform/webhook', async (req, res) => {
       });
     }
 
+    console.log(`🗑️  Deleting ${platform} webhook...`);
+
     switch (platform) {
       case 'telegram':
         await axios.post(
@@ -372,14 +396,128 @@ router.delete('/:platform/webhook', async (req, res) => {
         });
     }
 
+    console.log(`✅ ${platform} webhook deleted successfully`);
+
     res.json({ 
       success: true, 
       message: `${platform} webhook deleted successfully` 
     });
   } catch (error) {
+    console.error(`❌ Error deleting ${platform} webhook:`, error.message);
     res.status(500).json({ 
       success: false, 
-      error: error.message 
+      error: error.response?.data?.status_message || error.message 
+    });
+  }
+});
+
+// Fix webhook - removes and re-registers with correct URL
+router.post('/:platform/fix-webhook', async (req, res) => {
+  try {
+    const { platform } = req.params;
+    const { domain } = req.body;
+
+    if (!domain) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Domain is required' 
+      });
+    }
+
+    // Get token from database
+    const result = await query(
+      'SELECT * FROM settings WHERE key = $1',
+      [`${platform}_bot_token`]
+    );
+
+    const settings = result.rows[0];
+
+    if (!settings || !settings.value) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Bot token not found. Please setup the bot first.' 
+      });
+    }
+
+    const token = settings.value;
+
+    // Clean domain
+    let cleanDomain = domain.replace(/\/+$/, '');
+    cleanDomain = cleanDomain.replace(/\/webhooks.*$/, '');
+    cleanDomain = cleanDomain.replace(/\/(viber|telegram|messenger).*$/, '');
+
+    const webhookUrl = `${cleanDomain}/webhooks/${platform}`;
+
+    console.log(`🔧 Fixing ${platform} webhook:`, {
+      oldDomain: domain,
+      cleanDomain,
+      webhookUrl
+    });
+
+    // Delete old webhook first
+    switch (platform) {
+      case 'telegram':
+        await axios.post(
+          `https://api.telegram.org/bot${token}/deleteWebhook`
+        );
+        // Set new webhook
+        const tgResponse = await axios.post(
+          `https://api.telegram.org/bot${token}/setWebhook`,
+          { url: webhookUrl }
+        );
+        if (!tgResponse.data.ok) {
+          throw new Error(tgResponse.data.description);
+        }
+        break;
+
+      case 'viber':
+        // Delete old webhook
+        await axios.post(
+          'https://chatapi.viber.com/pa/set_webhook',
+          { url: '' },
+          { headers: { 'X-Viber-Auth-Token': token } }
+        );
+        // Set new webhook
+        const vbResponse = await axios.post(
+          'https://chatapi.viber.com/pa/set_webhook',
+          { 
+            url: webhookUrl,
+            event_types: ['delivered', 'seen', 'failed', 'subscribed', 'unsubscribed', 'conversation_started']
+          },
+          { headers: { 'X-Viber-Auth-Token': token } }
+        );
+        if (vbResponse.data.status !== 0) {
+          throw new Error(vbResponse.data.status_message);
+        }
+        break;
+
+      default:
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid platform. Use: telegram, viber' 
+        });
+    }
+
+    // Update domain in database
+    await query(`
+      INSERT INTO settings (key, value, updated_at)
+      VALUES ('webhook_domain', $1, NOW())
+      ON CONFLICT (key) DO UPDATE
+      SET value = $1, updated_at = NOW()
+    `, [cleanDomain]);
+
+    console.log(`✅ ${platform} webhook fixed successfully`);
+
+    res.json({ 
+      success: true, 
+      message: `${platform} webhook fixed and re-registered successfully`,
+      webhook_url: webhookUrl
+    });
+  } catch (error) {
+    console.error(`❌ Error fixing ${platform} webhook:`, error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: error.response?.data?.status_message || error.response?.data?.description || error.message 
     });
   }
 });
