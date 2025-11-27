@@ -24,8 +24,8 @@ const ChatRealtime = ({ api }) => {
     console.log('🔌 Connecting to WebSocket:', baseUrl);
     
     const socket = io(baseUrl, {
-      // Try WebSocket first, fallback to polling
-      transports: ['websocket', 'polling'],
+      // Try polling first for better stability, then upgrade to WebSocket
+      transports: ['polling', 'websocket'],
       // Reconnection settings
       reconnection: true,
       reconnectionDelay: 1000,

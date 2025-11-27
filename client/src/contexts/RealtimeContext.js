@@ -24,9 +24,10 @@ export const RealtimeProvider = ({ children }) => {
     const baseUrl = apiUrl.replace('/api', '');
     
     console.log('🔌 RealtimeContext connecting to:', baseUrl);
+    console.log('🌐 Environment:', process.env.NODE_ENV);
     
     const socket = io(baseUrl, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'], // Try polling first for stability
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -34,7 +35,10 @@ export const RealtimeProvider = ({ children }) => {
       timeout: 20000,
       path: '/socket.io/',
       autoConnect: true,
-      withCredentials: true
+      withCredentials: true,
+      upgrade: true,
+      rememberUpgrade: true,
+      forceNew: false
     });
 
     socketRef.current = socket;

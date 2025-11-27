@@ -44,16 +44,14 @@
 .page-title {
   font-size: 32px;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #ffffff !important;
   margin-bottom: 8px;
   letter-spacing: -0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .page-subtitle, .subtitle {
-  color: var(--text-secondary);
+  color: #d1d5db !important;
   font-size: 15px;
   font-weight: 500;
 }
@@ -304,9 +302,10 @@
 }
 
 .badge-success {
-  background: var(--success-bg);
-  color: var(--success-light);
-  border: 1px solid var(--success);
+  background: var(--success);
+  color: #ffffff;
+  border: 1px solid var(--success-dark);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
 }
 
 .badge-warning {
@@ -316,9 +315,10 @@
 }
 
 .badge-danger {
-  background: var(--danger-bg);
-  color: var(--danger-light);
-  border: 1px solid var(--danger);
+  background: var(--danger);
+  color: #ffffff;
+  border: 1px solid var(--danger-dark);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
 }
 
 .badge-info {

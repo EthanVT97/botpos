@@ -1,0 +1,393 @@
+/* 
+ * COMPREHENSIVE FIXES FOR MYANMAR POS SYSTEM
+ * Addresses: Text contrast, empty states, bot badges, loading states
+ */
+
+/* ===== FIX 1: PAGE TITLE & SUBTITLE CONTRAST ===== */
+.page-title {
+  color: #ffffff !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+  font-weight: 700 !important;
+  font-size: 32px !important;
+  margin-bottom: 8px !important;
+}
+
+.page-subtitle, .subtitle {
+  color: #d1d5db !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+/* ===== FIX 2: BOT STATUS BADGES - CRITICAL VISIBILITY ===== */
+.badge-danger {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  border: 2px solid #dc2626 !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5) !important;
+  font-weight: 700 !important;
+  padding: 8px 16px !important;
+}
+
+.badge-success {
+  background: #10b981 !important;
+  color: #ffffff !important;
+  border: 2px solid #059669 !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5) !important;
+  font-weight: 700 !important;
+  padding: 8px 16px !important;
+}
+
+.badge-warning {
+  background: #f59e0b !important;
+  color: #ffffff !important;
+  border: 2px solid #d97706 !important;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5) !important;
+  font-weight: 700 !important;
+}
+
+.badge-info {
+  background: #3b82f6 !important;
+  color: #ffffff !important;
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.5) !important;
+  font-weight: 700 !important;
+}
+
+/* ===== FIX 3: EMPTY STATES - BETTER UX ===== */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 16px;
+  border: 2px dashed #334155;
+  margin: 20px 0;
+}
+
+.empty-state-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.empty-state-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin-bottom: 8px;
+}
+
+.empty-state-subtitle {
+  font-size: 14px;
+  color: #94a3b8;
+  margin-bottom: 20px;
+}
+
+.empty-state-action {
+  margin-top: 20px;
+}
+
+/* ===== FIX 4: LOADING STATES - CLEAR FEEDBACK ===== */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #94a3b8;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #334155;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+
+.loading-text {
+  font-size: 16px;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== FIX 5: SKELETON LOADING - REPORTS PAGE ===== */
+.skeleton-box {
+  background: linear-gradient(
+    90deg,
+    #1e293b 0%,
+    #334155 50%,
+    #1e293b 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: 'Loading...';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ===== FIX 6: WEBSOCKET CONNECTION STATUS ===== */
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.connection-status.connected {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid #10b981;
+}
+
+.connection-status.disconnected {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.connection-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ===== FIX 7: ERROR MESSAGES - CLEAR & ACTIONABLE ===== */
+.error-message {
+  padding: 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 2px solid #ef4444;
+  border-radius: 12px;
+  color: #fca5a5;
+  margin: 20px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.error-message-icon {
+  flex-shrink: 0;
+  font-size: 24px;
+}
+
+.error-message-content {
+  flex: 1;
+}
+
+.error-message-title {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 4px;
+  color: #fca5a5;
+}
+
+.error-message-text {
+  font-size: 14px;
+  color: #fca5a5;
+  margin-bottom: 12px;
+}
+
+.error-message-action {
+  margin-top: 12px;
+}
+
+/* ===== FIX 8: PAGE HEADER LAYOUT ===== */
+.page-header {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 24px;
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  border: 1px solid #334155;
+}
+
+.page-header > div:first-child {
+  flex: 1;
+  min-width: 250px;
+}
+
+/* ===== FIX 9: BUTTON IMPROVEMENTS ===== */
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+}
+
+.btn-secondary {
+  background: #334155;
+  color: #f1f5f9;
+  border: 1px solid #475569;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #475569;
+  border-color: #64748b;
+}
+
+/* ===== FIX 10: CARD IMPROVEMENTS ===== */
+.card {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  margin-bottom: 24px;
+  border: 1px solid #334155;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+  border-color: #475569;
+}
+
+/* ===== FIX 11: TABLE TEXT CONTRAST ===== */
+.table th {
+  color: #f1f5f9 !important;
+  font-weight: 700 !important;
+}
+
+.table td {
+  color: #cbd5e1 !important;
+}
+
+/* ===== FIX 12: FORM LABELS ===== */
+.form-label {
+  color: #f1f5f9 !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+  display: block !important;
+}
+
+/* ===== FIX 13: RESPONSIVE IMPROVEMENTS ===== */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 24px !important;
+  }
+  
+  .page-subtitle {
+    font-size: 14px !important;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ===== FIX 14: ACCESSIBILITY IMPROVEMENTS ===== */
+*:focus-visible {
+  outline: 2px solid #6366f1 !important;
+  outline-offset: 2px !important;
+}
+
+/* High contrast for links */
+a {
+  color: #818cf8 !important;
+  text-decoration: underline;
+}
+
+a:hover {
+  color: #a78bfa !important;
+}
+
+/* ===== FIX 15: NOTIFICATION IMPROVEMENTS ===== */
+.notification {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.notification.success {
+  background: rgba(16, 185, 129, 0.2) !important;
+  border-color: #10b981 !important;
+  color: #6ee7b7 !important;
+}
+
+.notification.error {
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-color: #ef4444 !important;
+  color: #fca5a5 !important;
+}
+
+.notification.warning {
+  background: rgba(245, 158, 11, 0.2) !important;
+  border-color: #f59e0b !important;
+  color: #fcd34d !important;
+}
+
+.notification.info {
+  background: rgba(59, 130, 246, 0.2) !important;
+  border-color: #3b82f6 !important;
+  color: #93c5fd !important;
+}

@@ -7,41 +7,24 @@ const EmptyState = ({
   action
 }) => {
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '60px 20px',
-      textAlign: 'center'
-    }}>
-      <div style={{
-        fontSize: '64px',
-        marginBottom: '16px',
-        opacity: 0.8
-      }}>
+    <div className="empty-state">
+      <div className="empty-state-icon">
         {icon}
       </div>
       
-      <h3 style={{
-        fontSize: '18px',
-        fontWeight: '600',
-        color: '#1a1a1a',
-        marginBottom: '8px'
-      }}>
+      <h3 className="empty-state-title">
         {title}
       </h3>
       
-      <p style={{
-        fontSize: '14px',
-        color: '#9ca3af',
-        marginBottom: action ? '20px' : 0,
-        maxWidth: '400px'
-      }}>
+      <p className="empty-state-subtitle">
         {subtitle}
       </p>
       
-      {action && action}
+      {action && (
+        <div className="empty-state-action">
+          {action}
+        </div>
+      )}
     </div>
   );
 };

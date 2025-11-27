@@ -321,9 +321,11 @@ const SellingPrice = () => {
 
     return (
         <div className="page">
-            <div className="page-header">
+            <div className="page-header" style={{ display: 'block' }}>
                 <h1 className="page-title">Selling Price / ရောင်းဈေး</h1>
-                <p className="page-subtitle">Manage product selling prices with advanced formulas</p>
+                <p className="page-subtitle" style={{ whiteSpace: 'normal', overflow: 'visible' }}>
+                    Manage product selling prices with advanced formulas
+                </p>
             </div>
             <div className="card">
                 {/* Bulk Update Section */}
