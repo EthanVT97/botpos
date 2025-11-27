@@ -9,6 +9,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import './App.dark.css';
+import './theme-override.css';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import Products from './pages/Products';

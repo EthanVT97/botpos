@@ -1,0 +1,542 @@
+/* Global Dark Theme Override for All Pages */
+
+/* Ensure all pages have dark background */
+.page, .dashboard, .pos-page, .analytics-page, .stores-page, 
+.store-transfers-page, .products-page, .customers-page, 
+.orders-page, .inventory-page, .categories-page, .settings-page,
+.reports-page, .bot-flows-page, .messages-page {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+/* Page Headers */
+.page-header, .dashboard-header {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.page-header h1, .page-header h2, .page-header h3,
+.dashboard-header h1, .dashboard-header h2 {
+  color: var(--text-primary) !important;
+}
+
+.page-header p, .subtitle {
+  color: var(--text-secondary) !important;
+}
+
+/* Cards */
+.card, .stat-card, .widget, .dashboard-card, 
+.product-card, .customer-card, .order-card,
+.store-card, .transfer-card {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.card:hover, .stat-card:hover, .store-card:hover {
+  border-color: var(--border-hover) !important;
+}
+
+/* Card Headers and Titles */
+.card h2, .card h3, .card h4,
+.widget h2, .widget h3, .widget h4,
+.stat-card h3, .stat-card h4 {
+  color: var(--text-primary) !important;
+}
+
+.card p, .widget p, .stat-card p {
+  color: var(--text-secondary) !important;
+}
+
+/* Tables */
+.table, .data-table, .MuiDataGrid-root {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.table th, .MuiDataGrid-columnHeaders {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.table td, .MuiDataGrid-cell {
+  background: var(--bg-secondary) !important;
+  color: var(--text-secondary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.table tbody tr:hover, .MuiDataGrid-row:hover {
+  background: var(--bg-tertiary) !important;
+}
+
+/* Forms and Inputs */
+.input, input, select, textarea,
+.form-control, .MuiTextField-root input,
+.MuiSelect-select, .MuiInputBase-input {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.input:focus, input:focus, select:focus, textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px var(--primary-glow) !important;
+}
+
+.input::placeholder, input::placeholder, textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+.form-label, label, .MuiFormLabel-root {
+  color: var(--text-primary) !important;
+}
+
+/* Buttons - Keep existing styles but ensure text is visible */
+.btn, button {
+  font-weight: 600;
+}
+
+.btn-secondary, .btn-outline {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.btn-secondary:hover, .btn-outline:hover {
+  background: var(--bg-hover) !important;
+  border-color: var(--border-hover) !important;
+}
+
+/* Modals */
+.modal, .modal-content, .MuiDialog-paper {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.modal-header, .modal-title {
+  color: var(--text-primary) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+.modal-body {
+  color: var(--text-secondary) !important;
+}
+
+.modal-footer {
+  border-top-color: var(--border-color) !important;
+}
+
+/* Badges and Status */
+.badge {
+  font-weight: 600;
+}
+
+.badge.active, .badge-success {
+  background: var(--success-bg) !important;
+  color: var(--success-light) !important;
+  border: 1px solid var(--success) !important;
+}
+
+.badge.inactive, .badge-danger {
+  background: var(--danger-bg) !important;
+  color: var(--danger-light) !important;
+  border: 1px solid var(--danger) !important;
+}
+
+.badge-warning {
+  background: var(--warning-bg) !important;
+  color: var(--warning-light) !important;
+  border: 1px solid var(--warning) !important;
+}
+
+.badge-info {
+  background: var(--info-bg) !important;
+  color: var(--info-light) !important;
+  border: 1px solid var(--info) !important;
+}
+
+/* Stats and Metrics */
+.stat-value, .metric-value {
+  color: var(--text-primary) !important;
+}
+
+.stat-label, .metric-label {
+  color: var(--text-tertiary) !important;
+}
+
+/* Lists and Items */
+.list-item, .menu-item {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.list-item:hover, .menu-item:hover {
+  background: var(--bg-tertiary) !important;
+}
+
+/* Dropdowns and Selects */
+.dropdown-menu, .select-menu, .MuiMenu-paper {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-xl) !important;
+}
+
+.dropdown-item, .select-option, .MuiMenuItem-root {
+  color: var(--text-primary) !important;
+}
+
+.dropdown-item:hover, .select-option:hover, .MuiMenuItem-root:hover {
+  background: var(--bg-tertiary) !important;
+}
+
+/* Tabs */
+.tabs, .tab-list, .MuiTabs-root {
+  background: var(--bg-secondary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.tab, .tab-item, .MuiTab-root {
+  color: var(--text-secondary) !important;
+}
+
+.tab.active, .tab-item.active, .MuiTab-root.Mui-selected {
+  color: var(--primary) !important;
+  border-bottom-color: var(--primary) !important;
+}
+
+/* Alerts and Messages */
+.alert, .message, .notification {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.alert-success {
+  background: var(--success-bg) !important;
+  color: var(--success-light) !important;
+  border-color: var(--success) !important;
+}
+
+.alert-warning {
+  background: var(--warning-bg) !important;
+  color: var(--warning-light) !important;
+  border-color: var(--warning) !important;
+}
+
+.alert-danger, .alert-error {
+  background: var(--danger-bg) !important;
+  color: var(--danger-light) !important;
+  border-color: var(--danger) !important;
+}
+
+.alert-info {
+  background: var(--info-bg) !important;
+  color: var(--info-light) !important;
+  border-color: var(--info) !important;
+}
+
+/* Charts and Graphs */
+.chart-container, .recharts-wrapper {
+  background: var(--bg-secondary) !important;
+}
+
+.recharts-text, .recharts-label {
+  fill: var(--text-secondary) !important;
+}
+
+.recharts-cartesian-axis-line, .recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--border-color) !important;
+}
+
+/* Empty States */
+.empty-state, .no-data {
+  color: var(--text-tertiary) !important;
+}
+
+.empty-state h3, .no-data h3 {
+  color: var(--text-secondary) !important;
+}
+
+/* Loading States */
+.loading, .loading-container {
+  color: var(--text-tertiary) !important;
+}
+
+.spinner {
+  border-color: var(--bg-tertiary) !important;
+  border-top-color: var(--primary) !important;
+}
+
+/* Dividers */
+hr, .divider {
+  border-color: var(--border-color) !important;
+}
+
+/* Tooltips */
+.tooltip, .MuiTooltip-tooltip {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+/* Popovers */
+.popover, .MuiPopover-paper {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+/* Breadcrumbs */
+.breadcrumb, .MuiBreadcrumbs-root {
+  color: var(--text-secondary) !important;
+}
+
+.breadcrumb-item, .MuiBreadcrumbs-li {
+  color: var(--text-secondary) !important;
+}
+
+.breadcrumb-item.active {
+  color: var(--text-primary) !important;
+}
+
+/* Pagination */
+.pagination, .MuiPagination-root {
+  color: var(--text-primary) !important;
+}
+
+.pagination-item, .MuiPaginationItem-root {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.pagination-item:hover, .MuiPaginationItem-root:hover {
+  background: var(--bg-hover) !important;
+}
+
+.pagination-item.active, .MuiPaginationItem-root.Mui-selected {
+  background: var(--primary) !important;
+  color: white !important;
+  border-color: var(--primary) !important;
+}
+
+/* Accordions */
+.accordion, .MuiAccordion-root {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.accordion-header, .MuiAccordionSummary-root {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Progress Bars */
+.progress, .MuiLinearProgress-root {
+  background: var(--bg-tertiary) !important;
+}
+
+.progress-bar, .MuiLinearProgress-bar {
+  background: var(--primary) !important;
+}
+
+/* Switches and Checkboxes */
+.switch, .checkbox, .MuiSwitch-root, .MuiCheckbox-root {
+  color: var(--text-secondary) !important;
+}
+
+.switch.checked, .checkbox.checked, 
+.MuiSwitch-root.Mui-checked, .MuiCheckbox-root.Mui-checked {
+  color: var(--primary) !important;
+}
+
+/* Radio Buttons */
+.radio, .MuiRadio-root {
+  color: var(--text-secondary) !important;
+}
+
+.radio.checked, .MuiRadio-root.Mui-checked {
+  color: var(--primary) !important;
+}
+
+/* Chips */
+.chip, .MuiChip-root {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+/* Avatars */
+.avatar, .MuiAvatar-root {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Specific Page Fixes */
+
+/* POS Page */
+.pos-cart, .cart-container {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.cart-item {
+  background: var(--bg-tertiary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.cart-total {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Dashboard Widgets */
+.widget-header {
+  color: var(--text-primary) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+.widget-body {
+  color: var(--text-secondary) !important;
+}
+
+/* Store Cards */
+.store-card-header h3 {
+  color: var(--text-primary) !important;
+}
+
+.store-details {
+  color: var(--text-secondary) !important;
+}
+
+.detail-item {
+  color: var(--text-secondary) !important;
+}
+
+/* Product Cards */
+.product-name {
+  color: var(--text-primary) !important;
+}
+
+.product-name-mm {
+  color: var(--text-tertiary) !important;
+}
+
+.product-price {
+  color: var(--gold) !important;
+}
+
+/* Currency Display */
+.price, .amount, .total, .currency {
+  color: var(--gold) !important;
+  font-weight: 700;
+}
+
+/* Status Indicators */
+.status-online, .status-connected {
+  color: var(--success) !important;
+}
+
+.status-offline, .status-disconnected {
+  color: var(--danger) !important;
+}
+
+.status-pending, .status-warning {
+  color: var(--warning) !important;
+}
+
+/* Text Colors */
+.text-primary {
+  color: var(--text-primary) !important;
+}
+
+.text-secondary {
+  color: var(--text-secondary) !important;
+}
+
+.text-tertiary, .text-muted {
+  color: var(--text-tertiary) !important;
+}
+
+.text-success {
+  color: var(--success) !important;
+}
+
+.text-warning {
+  color: var(--warning) !important;
+}
+
+.text-danger, .text-error {
+  color: var(--danger) !important;
+}
+
+.text-info {
+  color: var(--info) !important;
+}
+
+/* Background Colors */
+.bg-primary {
+  background: var(--bg-primary) !important;
+}
+
+.bg-secondary {
+  background: var(--bg-secondary) !important;
+}
+
+.bg-tertiary {
+  background: var(--bg-tertiary) !important;
+}
+
+/* Border Colors */
+.border {
+  border-color: var(--border-color) !important;
+}
+
+.border-primary {
+  border-color: var(--primary) !important;
+}
+
+/* Links */
+a {
+  color: var(--primary) !important;
+}
+
+a:hover {
+  color: var(--primary-light) !important;
+}
+
+/* Code Blocks */
+code, pre {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+/* Ensure white text on colored buttons */
+.btn-primary, .btn-success, .btn-danger, .btn-warning, .btn-info {
+  color: white !important;
+}
+
+/* Fix for any remaining light backgrounds */
+[style*="background: white"], 
+[style*="background: #fff"],
+[style*="background-color: white"],
+[style*="background-color: #fff"] {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Fix for any remaining dark text on light bg */
+[style*="color: black"],
+[style*="color: #000"],
+[style*="color: #111"],
+[style*="color: #333"] {
+  color: var(--text-primary) !important;
+}
