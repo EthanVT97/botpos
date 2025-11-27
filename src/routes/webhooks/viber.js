@@ -66,93 +66,122 @@ router.post('/', async (req, res) => {
     }
   }
 
-  try {
-    // The viber-bot library handles signature verification internally
-    viberBotInstance.middleware()(req, res, () => {
-      console.log('✅ Viber webhook processed successfully');
-      res.status(200).send();
-    });
-  } catch (error) {
-    console.error('❌ Viber webhook error:', error);
-    res.status(200).send(); // Return 200 to avoid retries
+  // Handle message event directly
+  if (req.body.event === 'message' && req.body.message && req.body.sender) {
+    try {
+      await handleViberMessage(req.body);
+      console.log('✅ Viber message handled successfully');
+    } catch (error) {
+      console.error('❌ Error handling Viber message:', error);
+    }
   }
+
+  // Always return 200 to Viber
+  res.status(200).send();
 });
 
-// Setup message handler for Viber bot
-function setupViberMessageHandler() {
-  if (!viberBotInstance) return;
+// Handle Viber message directly from webhook
+async function handleViberMessage(webhookData) {
+  try {
+    console.log('💬 Processing Viber message...');
 
-  viberBotInstance.on('message', async (message) => {
-    try {
-      console.log('💬 Viber message received:', {
-        from: message.userProfile?.name,
-        text: message.text?.substring(0, 50),
-        timestamp: new Date().toISOString()
-      });
+    const sender = webhookData.sender;
+    const message = webhookData.message;
 
-      // Validate message structure
-      if (!message || !message.userProfile || !message.text) {
-        console.warn('⚠️  Invalid Viber message structure');
-        return;
-      }
-
-      const userId = message.userProfile.id;
-      const userName = message.userProfile.name;
-      const text = message.text;
-
-      // Get or create customer
-      const { getOrCreateCustomer, saveIncomingMessage, saveOutgoingMessage } = require('../../utils/chatHelpers');
-      const customer = await getOrCreateCustomer(userId, userName, 'viber');
-
-      console.log('👤 Customer:', { id: customer.id, name: customer.name });
-
-      // Save incoming message (this also updates session and unread count)
-      await saveIncomingMessage(customer.id, text, 'viber');
-      console.log('💾 Message saved to database');
-
-      // Try to process with flow executor first
-      const flowResponse = await flowExecutor.processMessage(customer.id, text, 'viber');
-      
-      if (flowResponse && flowResponse.message) {
-        // Send flow response
-        await viberBotInstance.sendMessage(message.userProfile, [
-          new ViberMessage.Text(flowResponse.message)
-        ]);
-        
-        // Save bot response
-        await saveOutgoingMessage(customer.id, flowResponse.message, 'viber');
-        console.log('✅ Flow response sent');
-      } else {
-        // Fallback to default handling
-        if (text.startsWith('/')) {
-          await handleViberCommand(message, customer);
-        } else {
-          const response = 'မင်္ဂလာပါ! ကျွန်ုပ်တို့၏ POS စနစ်မှ ကြိုဆိုပါတယ်။\n\n' +
-            'Commands:\n' +
-            '/products - ကုန်ပစ္စည်းများကြည့်ရန်\n' +
-            '/orders - မှာယူမှုများကြည့်ရန်\n' +
-            '/help - အကူအညီ';
-          
-          await viberBotInstance.sendMessage(message.userProfile, [
-            new ViberMessage.Text(response)
-          ]);
-          
-          // Save bot response
-          await saveOutgoingMessage(customer.id, response, 'viber');
-          console.log('✅ Welcome message sent');
-        }
-      }
-    } catch (error) {
-      console.error('❌ Viber message handler error:', error);
+    if (!sender || !message || !message.text) {
+      console.warn('⚠️  Invalid message structure');
+      return;
     }
-  });
 
-  console.log('✅ Viber message handler setup complete');
+    const userId = sender.id;
+    const userName = sender.name;
+    const text = message.text;
+
+    console.log('👤 User:', { id: userId, name: userName, text });
+
+    // Get or create customer
+    const { getOrCreateCustomer, saveIncomingMessage, saveOutgoingMessage } = require('../../utils/chatHelpers');
+    const customer = await getOrCreateCustomer(userId, userName, 'viber');
+
+    console.log('✅ Customer found/created:', { id: customer.id, name: customer.name });
+
+    // Save incoming message
+    await saveIncomingMessage(customer.id, text, 'viber');
+    console.log('💾 Message saved to database');
+
+    // Prepare response
+    let response;
+    
+    // Check for commands
+    if (text.startsWith('/')) {
+      response = await getCommandResponse(text, customer);
+    } else {
+      // Default welcome message with keyboard
+      response = 'မင်္ဂလာပါ! ကျွန်ုပ်တို့၏ POS စနစ်မှ ကြိုဆိုပါတယ်။\n\n' +
+        'Commands:\n' +
+        '/products - ကုန်ပစ္စည်းများကြည့်ရန်\n' +
+        '/orders - မှာယူမှုများကြည့်ရန်\n' +
+        '/help - အကူအညီ';
+    }
+
+    // Send response via Viber API
+    await sendViberMessage(userId, response);
+    
+    // Save bot response
+    await saveOutgoingMessage(customer.id, response, 'viber');
+    console.log('✅ Response sent and saved');
+
+  } catch (error) {
+    console.error('❌ Error in handleViberMessage:', error);
+    throw error;
+  }
 }
 
-async function handleViberCommand(message, customer) {
-  const command = message.text.split(' ')[0];
+// Send message via Viber API
+async function sendViberMessage(userId, text, keyboard = null) {
+  try {
+    const axios = require('axios');
+    
+    const payload = {
+      receiver: userId,
+      type: 'text',
+      text: text,
+      sender: {
+        name: 'Myanmar POS Bot'
+      }
+    };
 
+    // Add keyboard if provided
+    if (keyboard) {
+      payload.keyboard = keyboard;
+    }
+
+    const response = await axios.post(
+      'https://chatapi.viber.com/pa/send_message',
+      payload,
+      {
+        headers: {
+          'X-Viber-Auth-Token': viberBotToken
+        }
+      }
+    );
+
+    console.log('📤 Viber API response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error sending Viber message:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+// Setup message handler (kept for compatibility but not used)
+function setupViberMessageHandler() {
+  console.log('✅ Viber message handler setup (using direct webhook handling)');
+}
+
+// Get response for command
+async function getCommandResponse(text, customer) {
+  const command = text.split(' ')[0];
   console.log('🔧 Processing command:', command);
 
   switch (command) {
@@ -170,12 +199,7 @@ async function handleViberCommand(message, customer) {
       } else {
         productList += 'ကုန်ပစ္စည်းမရှိသေးပါ။';
       }
-      
-      await viberBotInstance.sendMessage(message.userProfile, [
-        new ViberMessage.Text(productList)
-      ]);
-      console.log('✅ Products list sent');
-      break;
+      return productList;
 
     case '/orders':
       const { data: orders } = await supabase
@@ -193,18 +217,19 @@ async function handleViberCommand(message, customer) {
       } else {
         orderList += 'မှာယူမှုမရှိသေးပါ။';
       }
-      
-      await viberBotInstance.sendMessage(message.userProfile, [
-        new ViberMessage.Text(orderList)
-      ]);
-      console.log('✅ Orders list sent');
-      break;
+      return orderList;
+
+    case '/help':
+      return 'Available Commands:\n\n' +
+        '/products - View products (ကုန်ပစ္စည်းများ)\n' +
+        '/orders - View your orders (မှာယူမှုများ)\n' +
+        '/help - Show this help (အကူအညီ)';
 
     default:
-      await viberBotInstance.sendMessage(message.userProfile, [
-        new ViberMessage.Text('ကျေးဇူးပြု၍ မှန်ကန်သော command ကို ရိုက်ထည့်ပါ။\n\n/products - ကုန်ပစ္စည်းများ\n/orders - မှာယူမှုများ\n/help - အကူအညီ')
-      ]);
-      console.log('✅ Help message sent');
+      return 'ကျေးဇူးပြု၍ မှန်ကန်သော command ကို ရိုက်ထည့်ပါ။\n\n' +
+        '/products - ကုန်ပစ္စည်းများ\n' +
+        '/orders - မှာယူမှုများ\n' +
+        '/help - အကူအညီ';
   }
 }
 
