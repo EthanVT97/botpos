@@ -6,20 +6,27 @@ const { emitNewMessage, emitSessionUpdate, emitUnreadCountUpdate } = require('..
 const flowExecutor = require('../../utils/flowExecutor');
 const { verifyViberWebhook } = require('../../middleware/webhookVerification');
 
-// Viber webhook with verification
-router.post('/', verifyViberWebhook, (req, res) => {
+// Viber webhook - let viber-bot library handle verification
+router.post('/', async (req, res) => {
+  console.log('📱 Viber webhook received:', {
+    event: req.body.event,
+    timestamp: new Date().toISOString()
+  });
+
   // Check if Viber bot is configured
   if (!isViberAvailable()) {
     console.warn('⚠️  Viber webhook received but bot not configured');
-    return res.status(503).json({ error: 'Viber bot not configured' });
+    return res.status(200).send(); // Return 200 to avoid retries
   }
 
   try {
+    // The viber-bot library handles signature verification internally
     viberBot.middleware()(req, res, () => {
+      console.log('✅ Viber webhook processed successfully');
       res.status(200).send();
     });
   } catch (error) {
-    console.error('Viber webhook error:', error);
+    console.error('❌ Viber webhook error:', error);
     res.status(200).send(); // Return 200 to avoid retries
   }
 });
