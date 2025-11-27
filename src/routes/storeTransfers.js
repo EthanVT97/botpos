@@ -7,33 +7,64 @@ router.get('/', async (req, res) => {
   try {
     const { status, store_id } = req.query;
     
-    let query = supabase
-      .from('store_transfers')
-      .select(`
-        *,
-        from_store:stores!store_transfers_from_store_id_fkey(id, name, code),
-        to_store:stores!store_transfers_to_store_id_fkey(id, name, code),
-        requested_by_user:users!store_transfers_requested_by_fkey(id, full_name),
-        approved_by_user:users!store_transfers_approved_by_fkey(id, full_name),
-        store_transfer_items(
-          *,
-          products(id, name, name_mm, sku)
-        )
-      `)
-      .order('created_at', { ascending: false });
+    let queryText = `
+      SELECT 
+        st.*,
+        json_build_object('id', fs.id, 'name', fs.name, 'code', fs.code) as from_store,
+        json_build_object('id', ts.id, 'name', ts.name, 'code', ts.code) as to_store,
+        json_build_object('id', ru.id, 'full_name', ru.full_name) as requested_by_user,
+        json_build_object('id', au.id, 'full_name', au.full_name) as approved_by_user,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', sti.id,
+              'product_id', sti.product_id,
+              'quantity', sti.quantity,
+              'received_quantity', sti.received_quantity,
+              'products', json_build_object(
+                'id', p.id,
+                'name', p.name,
+                'name_mm', p.name_mm,
+                'sku', p.sku
+              )
+            )
+          ) FILTER (WHERE sti.id IS NOT NULL),
+          '[]'
+        ) as store_transfer_items
+      FROM store_transfers st
+      LEFT JOIN stores fs ON st.from_store_id = fs.id
+      LEFT JOIN stores ts ON st.to_store_id = ts.id
+      LEFT JOIN users ru ON st.requested_by = ru.id
+      LEFT JOIN users au ON st.approved_by = au.id
+      LEFT JOIN store_transfer_items sti ON st.id = sti.transfer_id
+      LEFT JOIN products p ON sti.product_id = p.id
+    `;
+
+    const params = [];
+    const conditions = [];
 
     if (status) {
-      query = query.eq('status', status);
+      params.push(status);
+      conditions.push(`st.status = $${params.length}`);
     }
 
     if (store_id) {
-      query = query.or(`from_store_id.eq.${store_id},to_store_id.eq.${store_id}`);
+      params.push(store_id);
+      conditions.push(`(st.from_store_id = $${params.length} OR st.to_store_id = $${params.length})`);
     }
 
-    const { data, error } = await query;
+    if (conditions.length > 0) {
+      queryText += ` WHERE ${conditions.join(' AND ')}`;
+    }
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    queryText += `
+      GROUP BY st.id, fs.id, fs.name, fs.code, ts.id, ts.name, ts.code, 
+               ru.id, ru.full_name, au.id, au.full_name
+      ORDER BY st.created_at DESC
+    `;
+
+    const result = await pool.query(queryText, params);
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching store transfers:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -43,23 +74,48 @@ router.get('/', async (req, res) => {
 // Get transfer by ID
 router.get('/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('store_transfers')
-      .select(`
-        *,
-        from_store:stores!store_transfers_from_store_id_fkey(id, name, code),
-        to_store:stores!store_transfers_to_store_id_fkey(id, name, code),
-        requested_by_user:users!store_transfers_requested_by_fkey(id, full_name),
-        approved_by_user:users!store_transfers_approved_by_fkey(id, full_name),
-        store_transfer_items(
-          *,
-          products(id, name, name_mm, sku, image_url)
-        )
-      `)
-      .eq('id', req.params.id)
-      .single();
+    const result = await pool.query(`
+      SELECT 
+        st.*,
+        json_build_object('id', fs.id, 'name', fs.name, 'code', fs.code) as from_store,
+        json_build_object('id', ts.id, 'name', ts.name, 'code', ts.code) as to_store,
+        json_build_object('id', ru.id, 'full_name', ru.full_name) as requested_by_user,
+        json_build_object('id', au.id, 'full_name', au.full_name) as approved_by_user,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', sti.id,
+              'product_id', sti.product_id,
+              'quantity', sti.quantity,
+              'received_quantity', sti.received_quantity,
+              'products', json_build_object(
+                'id', p.id,
+                'name', p.name,
+                'name_mm', p.name_mm,
+                'sku', p.sku,
+                'image_url', p.image_url
+              )
+            )
+          ) FILTER (WHERE sti.id IS NOT NULL),
+          '[]'
+        ) as store_transfer_items
+      FROM store_transfers st
+      LEFT JOIN stores fs ON st.from_store_id = fs.id
+      LEFT JOIN stores ts ON st.to_store_id = ts.id
+      LEFT JOIN users ru ON st.requested_by = ru.id
+      LEFT JOIN users au ON st.approved_by = au.id
+      LEFT JOIN store_transfer_items sti ON st.id = sti.transfer_id
+      LEFT JOIN products p ON sti.product_id = p.id
+      WHERE st.id = $1
+      GROUP BY st.id, fs.id, fs.name, fs.code, ts.id, ts.name, ts.code, 
+               ru.id, ru.full_name, au.id, au.full_name
+    `, [req.params.id]);
 
-    if (error) throw error;
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Transfer not found' });
+    }
+
+    const data = result.rows[0];
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching transfer:', error);
