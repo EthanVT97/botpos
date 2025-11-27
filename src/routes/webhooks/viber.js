@@ -254,14 +254,13 @@ async function getCommandResponse(text, customer) {
 
   switch (command) {
     case '/products':
-      const { data: products } = await supabase
-        .from('products')
-        .select('*')
-        .limit(10);
+      const productsResult = await query(
+        'SELECT * FROM products ORDER BY created_at DESC LIMIT 10'
+      );
       
       let productList = '📦 ကုန်ပစ္စည်းများ:\n\n';
-      if (products && products.length > 0) {
-        products.forEach((p, index) => {
+      if (productsResult.rows && productsResult.rows.length > 0) {
+        productsResult.rows.forEach((p, index) => {
           productList += `${index + 1}. ${p.name_mm || p.name}\n`;
           productList += `   💰 ${p.price.toLocaleString()} ကျပ်\n`;
           if (p.stock_quantity !== undefined) {
@@ -275,16 +274,14 @@ async function getCommandResponse(text, customer) {
       return productList;
 
     case '/orders':
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('customer_id', customer.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
+      const ordersResult = await query(
+        'SELECT * FROM orders WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 5',
+        [customer.id]
+      );
       
       let orderList = '📋 သင့်မှာယူမှုများ:\n\n';
-      if (orders && orders.length > 0) {
-        orders.forEach((o, index) => {
+      if (ordersResult.rows && ordersResult.rows.length > 0) {
+        ordersResult.rows.forEach((o, index) => {
           const date = new Date(o.created_at).toLocaleDateString('en-GB');
           orderList += `${index + 1}. Order #${o.id.substring(0, 8)}\n`;
           orderList += `   💰 ${o.total_amount.toLocaleString()} ကျပ်\n`;
@@ -297,15 +294,13 @@ async function getCommandResponse(text, customer) {
       return orderList;
 
     case '/store':
-      const { data: stores } = await supabase
-        .from('stores')
-        .select('*')
-        .eq('is_active', true)
-        .limit(1);
+      const storesResult = await query(
+        'SELECT * FROM stores WHERE is_active = true LIMIT 1'
+      );
       
       let storeInfo = '🏪 ဆိုင်အချက်အလက်:\n\n';
-      if (stores && stores.length > 0) {
-        const store = stores[0];
+      if (storesResult.rows && storesResult.rows.length > 0) {
+        const store = storesResult.rows[0];
         storeInfo += `📍 ${store.name_mm || store.name}\n`;
         if (store.address) storeInfo += `🏠 ${store.address}\n`;
         if (store.phone) storeInfo += `📞 ${store.phone}\n`;
