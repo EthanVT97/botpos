@@ -109,23 +109,24 @@ async function handleViberMessage(webhookData) {
     await saveIncomingMessage(customer.id, text, 'viber');
     console.log('💾 Message saved to database');
 
-    // Prepare response
+    // Prepare response and keyboard
     let response;
+    let keyboard = null;
     
     // Check for commands
     if (text.startsWith('/')) {
       response = await getCommandResponse(text, customer);
+      // Add keyboard to command responses too
+      keyboard = getMainKeyboard();
     } else {
       // Default welcome message with keyboard
       response = 'မင်္ဂလာပါ! ကျွန်ုပ်တို့၏ POS စနစ်မှ ကြိုဆိုပါတယ်။\n\n' +
-        'Commands:\n' +
-        '/products - ကုန်ပစ္စည်းများကြည့်ရန်\n' +
-        '/orders - မှာယူမှုများကြည့်ရန်\n' +
-        '/help - အကူအညီ';
+        'ကျေးဇူးပြု၍ အောက်ပါခလုတ်များမှ ရွေးချယ်ပါ:';
+      keyboard = getMainKeyboard();
     }
 
-    // Send response via Viber API
-    await sendViberMessage(userId, response);
+    // Send response via Viber API with keyboard
+    await sendViberMessage(userId, response, keyboard);
     
     // Save bot response
     await saveOutgoingMessage(customer.id, response, 'viber');
@@ -135,6 +136,72 @@ async function handleViberMessage(webhookData) {
     console.error('❌ Error in handleViberMessage:', error);
     throw error;
   }
+}
+
+// Get main keyboard with buttons
+function getMainKeyboard() {
+  return {
+    Type: 'keyboard',
+    DefaultHeight: false,
+    Buttons: [
+      {
+        Columns: 6,
+        Rows: 1,
+        BgColor: '#6366f1',
+        BgMediaType: 'picture',
+        BgMedia: '',
+        Text: '<font color="#ffffff"><b>📦 ကုန်ပစ္စည်းများ</b></font>',
+        TextSize: 'regular',
+        TextVAlign: 'middle',
+        TextHAlign: 'center',
+        ActionType: 'reply',
+        ActionBody: '/products',
+        Silent: false
+      },
+      {
+        Columns: 6,
+        Rows: 1,
+        BgColor: '#10b981',
+        BgMediaType: 'picture',
+        BgMedia: '',
+        Text: '<font color="#ffffff"><b>📋 မှာယူမှုများ</b></font>',
+        TextSize: 'regular',
+        TextVAlign: 'middle',
+        TextHAlign: 'center',
+        ActionType: 'reply',
+        ActionBody: '/orders',
+        Silent: false
+      },
+      {
+        Columns: 6,
+        Rows: 1,
+        BgColor: '#f59e0b',
+        BgMediaType: 'picture',
+        BgMedia: '',
+        Text: '<font color="#ffffff"><b>❓ အကူအညီ</b></font>',
+        TextSize: 'regular',
+        TextVAlign: 'middle',
+        TextHAlign: 'center',
+        ActionType: 'reply',
+        ActionBody: '/help',
+        Silent: false
+      },
+      {
+        Columns: 6,
+        Rows: 1,
+        BgColor: '#8b5cf6',
+        BgMediaType: 'picture',
+        BgMedia: '',
+        Text: '<font color="#ffffff"><b>🏪 ဆိုင်အချက်အလက်</b></font>',
+        TextSize: 'regular',
+        TextVAlign: 'middle',
+        TextHAlign: 'center',
+        ActionType: 'reply',
+        ActionBody: '/store',
+        Silent: false
+      }
+    ]
+  };
 }
 
 // Send message via Viber API
@@ -147,7 +214,8 @@ async function sendViberMessage(userId, text, keyboard = null) {
       type: 'text',
       text: text,
       sender: {
-        name: 'Myanmar POS Bot'
+        name: 'Myanmar POS Bot',
+        avatar: 'https://via.placeholder.com/150'
       }
     };
 
@@ -191,10 +259,15 @@ async function getCommandResponse(text, customer) {
         .select('*')
         .limit(10);
       
-      let productList = 'ကုန်ပစ္စည်းများ:\n\n';
+      let productList = '📦 ကုန်ပစ္စည်းများ:\n\n';
       if (products && products.length > 0) {
-        products.forEach(p => {
-          productList += `${p.name_mm || p.name} - ${p.price} ကျပ်\n`;
+        products.forEach((p, index) => {
+          productList += `${index + 1}. ${p.name_mm || p.name}\n`;
+          productList += `   💰 ${p.price.toLocaleString()} ကျပ်\n`;
+          if (p.stock_quantity !== undefined) {
+            productList += `   📊 Stock: ${p.stock_quantity}\n`;
+          }
+          productList += '\n';
         });
       } else {
         productList += 'ကုန်ပစ္စည်းမရှိသေးပါ။';
@@ -209,27 +282,58 @@ async function getCommandResponse(text, customer) {
         .order('created_at', { ascending: false })
         .limit(5);
       
-      let orderList = 'သင့်မှာယူမှုများ:\n\n';
+      let orderList = '📋 သင့်မှာယူမှုများ:\n\n';
       if (orders && orders.length > 0) {
-        orders.forEach(o => {
-          orderList += `Order #${o.id.substring(0, 8)} - ${o.total_amount} ကျပ် - ${o.status}\n`;
+        orders.forEach((o, index) => {
+          const date = new Date(o.created_at).toLocaleDateString('en-GB');
+          orderList += `${index + 1}. Order #${o.id.substring(0, 8)}\n`;
+          orderList += `   💰 ${o.total_amount.toLocaleString()} ကျပ်\n`;
+          orderList += `   📅 ${date}\n`;
+          orderList += `   📊 Status: ${o.status}\n\n`;
         });
       } else {
-        orderList += 'မှာယူမှုမရှိသေးပါ။';
+        orderList += 'မှာယူမှုမရှိသေးပါ။\n\nကျေးဇူးပြု၍ ကုန်ပစ္စည်းများကို ကြည့်ရှုပြီး မှာယူပါ။';
       }
       return orderList;
 
+    case '/store':
+      const { data: stores } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('is_active', true)
+        .limit(1);
+      
+      let storeInfo = '🏪 ဆိုင်အချက်အလက်:\n\n';
+      if (stores && stores.length > 0) {
+        const store = stores[0];
+        storeInfo += `📍 ${store.name_mm || store.name}\n`;
+        if (store.address) storeInfo += `🏠 ${store.address}\n`;
+        if (store.phone) storeInfo += `📞 ${store.phone}\n`;
+        if (store.email) storeInfo += `📧 ${store.email}\n`;
+      } else {
+        storeInfo += 'Myanmar POS System\n';
+        storeInfo += '📞 Contact us for more information';
+      }
+      return storeInfo;
+
     case '/help':
-      return 'Available Commands:\n\n' +
-        '/products - View products (ကုန်ပစ္စည်းများ)\n' +
-        '/orders - View your orders (မှာယူမှုများ)\n' +
-        '/help - Show this help (အကူအညီ)';
+      return '❓ Available Commands:\n\n' +
+        '📦 /products - View products\n' +
+        '   ကုန်ပစ္စည်းများကြည့်ရန်\n\n' +
+        '📋 /orders - View your orders\n' +
+        '   မှာယူမှုများကြည့်ရန်\n\n' +
+        '🏪 /store - Store information\n' +
+        '   ဆိုင်အချက်အလက်\n\n' +
+        '❓ /help - Show this help\n' +
+        '   အကူအညီ';
 
     default:
-      return 'ကျေးဇူးပြု၍ မှန်ကန်သော command ကို ရိုက်ထည့်ပါ။\n\n' +
-        '/products - ကုန်ပစ္စည်းများ\n' +
-        '/orders - မှာယူမှုများ\n' +
-        '/help - အကူအညီ';
+      return 'ကျေးဇူးပြု၍ အောက်ပါခလုတ်များမှ ရွေးချယ်ပါ။\n\n' +
+        'သို့မဟုတ် commands များကို ရိုက်ထည့်နိုင်ပါသည်:\n' +
+        '📦 /products\n' +
+        '📋 /orders\n' +
+        '🏪 /store\n' +
+        '❓ /help';
   }
 }
 
