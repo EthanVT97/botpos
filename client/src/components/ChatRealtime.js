@@ -18,24 +18,39 @@ const ChatRealtime = ({ api }) => {
   // Initialize Socket.IO connection
   useEffect(() => {
     // Get the base URL without /api suffix
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
     const baseUrl = apiUrl.replace('/api', '');
     
+    console.log('🔌 Connecting to WebSocket:', baseUrl);
+    
     const socket = io(baseUrl, {
+      // Try WebSocket first, fallback to polling
       transports: ['websocket', 'polling'],
+      // Reconnection settings
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       reconnectionAttempts: Infinity,
+      // Timeout settings
       timeout: 20000,
+      // Path for Socket.IO
       path: '/socket.io/',
-      // Upgrade to WebSocket as soon as possible
+      // Upgrade settings
       upgrade: true,
-      // Force WebSocket in production
+      rememberUpgrade: true,
+      // Force new connection
       forceNew: false,
-      // Add query params for debugging
+      // Auto-connect
+      autoConnect: true,
+      // Query params for debugging
       query: {
-        client: 'chat-realtime'
+        client: 'chat-realtime',
+        timestamp: Date.now()
+      },
+      // Additional options for production
+      withCredentials: true,
+      extraHeaders: {
+        'X-Client-Type': 'chat'
       }
     });
 
@@ -43,7 +58,8 @@ const ChatRealtime = ({ api }) => {
 
     socket.on('connect', () => {
       console.log('✅ Socket connected:', socket.id);
-      console.log('Transport:', socket.io.engine.transport.name);
+      console.log('📡 Transport:', socket.io.engine.transport.name);
+      console.log('🌐 URL:', baseUrl);
       setConnected(true);
       socket.emit('join:admin');
     });
@@ -51,16 +67,28 @@ const ChatRealtime = ({ api }) => {
     socket.on('disconnect', (reason) => {
       console.log('❌ Socket disconnected:', reason);
       setConnected(false);
+      
+      // Auto-reconnect on certain disconnect reasons
+      if (reason === 'io server disconnect') {
+        // Server initiated disconnect, reconnect manually
+        socket.connect();
+      }
     });
 
-    // Handle ping from server
+    // Handle ping from server (heartbeat)
     socket.on('ping', () => {
+      console.log('💓 Heartbeat ping received');
       socket.emit('pong');
     });
 
     // Handle connection errors
     socket.on('connect_error', (error) => {
-      console.error('Connection error:', error.message);
+      console.error('❌ Connection error:', error.message);
+      console.error('Error details:', {
+        type: error.type,
+        description: error.description,
+        context: error.context
+      });
       setConnected(false);
     });
 
@@ -69,10 +97,21 @@ const ChatRealtime = ({ api }) => {
       console.log('🔄 Reconnected after', attemptNumber, 'attempts');
       setConnected(true);
       socket.emit('join:admin');
+      // Reload data after reconnection
+      loadChatSessions();
+      loadUnreadCount();
     });
 
     socket.on('reconnect_attempt', (attemptNumber) => {
       console.log('🔄 Reconnection attempt:', attemptNumber);
+    });
+
+    socket.on('reconnect_error', (error) => {
+      console.error('🔄 Reconnection error:', error.message);
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('❌ Reconnection failed after all attempts');
     });
 
     // Listen for new messages

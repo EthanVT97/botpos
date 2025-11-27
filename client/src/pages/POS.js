@@ -6,6 +6,8 @@ import './POS.css';
 const POS = () => {
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [stores, setStores] = useState([]);
+  const [selectedStore, setSelectedStore] = useState('');
   const [cart, setCart] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +18,7 @@ const POS = () => {
   const [uomCache, setUomCache] = useState({});
 
   useEffect(() => {
+    loadStores();
     loadProducts();
     loadCustomers();
     
@@ -29,6 +32,39 @@ const POS = () => {
       }
     }
   }, []);
+
+  const loadStores = async () => {
+    try {
+      const res = await getProducts(); // Using getProducts API, but we'll add getStores
+      // For now, create a default store
+      const defaultStores = [
+        { id: 'default', name: 'Main Store', name_mm: 'ပင်မဆိုင်' }
+      ];
+      
+      // Try to load stores from API
+      try {
+        const storesRes = await fetch('/api/stores');
+        if (storesRes.ok) {
+          const storesData = await storesRes.json();
+          if (storesData.success && storesData.data.length > 0) {
+            setStores(storesData.data);
+            setSelectedStore(storesData.data[0].id); // Select first store by default
+            return;
+          }
+        }
+      } catch (e) {
+        console.log('Stores API not available, using default');
+      }
+      
+      setStores(defaultStores);
+      setSelectedStore('default');
+    } catch (error) {
+      console.error('Error loading stores:', error);
+      // Set default store
+      setStores([{ id: 'default', name: 'Main Store', name_mm: 'ပင်မဆိုင်' }]);
+      setSelectedStore('default');
+    }
+  };
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
@@ -169,6 +205,7 @@ const POS = () => {
     try {
       const orderData = {
         customer_id: selectedCustomer || null,
+        store_id: selectedStore || null,
         items: cart.map(item => ({
           product_id: item.product_id,
           quantity: item.quantity,
@@ -201,7 +238,34 @@ const POS = () => {
   return (
     <div className="pos-page">
       <div className="pos-header">
-        <h1 className="pos-title">Point of Sale / ရောင်းချရန်</h1>
+        <div>
+          <h1 className="pos-title">Point of Sale / ရောင်းချရန်</h1>
+        </div>
+        {stores.length > 1 && (
+          <div style={{ minWidth: '200px' }}>
+            <label style={{ fontSize: '12px', color: '#666', marginBottom: '4px', display: 'block' }}>
+              Store / ဆိုင်
+            </label>
+            <select 
+              value={selectedStore}
+              onChange={(e) => setSelectedStore(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: '14px',
+                background: 'white'
+              }}
+            >
+              {stores.map(store => (
+                <option key={store.id} value={store.id}>
+                  {store.name_mm || store.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="pos-container">

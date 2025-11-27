@@ -6,12 +6,17 @@ const Dashboard = () => {
   const [summary, setSummary] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
   const [lowStock, setLowStock] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
   }, []);
 
   const loadDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
       const [summaryRes, topRes, stockRes] = await Promise.all([
         getSalesSummary(),
@@ -19,28 +24,31 @@ const Dashboard = () => {
         getLowStock()
       ]);
       
-      console.log('Dashboard data loaded:', {
+      console.log('✅ Dashboard data loaded:', {
         summary: summaryRes.data?.data,
         topProducts: topRes.data?.data,
         lowStock: stockRes.data?.data,
         timestamp: new Date().toISOString()
       });
       
-      setSummary(summaryRes.data?.data || null);
+      setSummary(summaryRes.data?.data || { total_sales: 0, order_count: 0 });
       setTopProducts(topRes.data?.data || []);
       setLowStock(stockRes.data?.data || []);
     } catch (error) {
-      console.error('Error loading dashboard data:', {
+      console.error('❌ Error loading dashboard data:', {
         error: error.message,
         response: error.response?.data,
         status: error.response?.status,
         timestamp: new Date().toISOString()
       });
       
+      setError(error.message);
       // Set empty states on error
       setSummary({ total_sales: 0, order_count: 0 });
       setTopProducts([]);
       setLowStock([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,12 +76,63 @@ const Dashboard = () => {
     },
   ];
 
+  if (loading) {
+    return (
+      <div className="page">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ 
+            width: '48px', 
+            height: '48px', 
+            border: '4px solid #e5e7eb', 
+            borderTopColor: '#3b82f6',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }} />
+          <p style={{ color: '#666', fontSize: '16px' }}>Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Dashboard</h1>
-        <p className="page-subtitle">ပင်မစာမျက်နှာ - Overview of your business</p>
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">ပင်မစာမျက်နှာ - Overview of your business</p>
+        </div>
+        <button 
+          onClick={loadDashboardData}
+          style={{
+            padding: '10px 20px',
+            background: '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          🔄 Refresh
+        </button>
       </div>
+
+      {error && (
+        <div style={{
+          padding: '16px',
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          color: '#dc2626'
+        }}>
+          ⚠️ Error loading data: {error}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '24px' }}>
         {stats.map((stat, index) => {
@@ -114,7 +173,7 @@ const Dashboard = () => {
               }}>
                 <Icon size={28} color={stat.color} />
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
                   {stat.title} / {stat.titleMm}
                 </div>
@@ -123,6 +182,11 @@ const Dashboard = () => {
                     ? `${stat.value.toLocaleString()} Ks` 
                     : stat.value}
                 </div>
+                {stat.value === 0 && (
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>
+                    No recent data
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -154,7 +218,19 @@ const Dashboard = () => {
               </tbody>
             </table>
           ) : (
-            <p style={{ color: '#666', textAlign: 'center', padding: '20px' }}>No data available</p>
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '40px 20px',
+              color: '#9ca3af'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>📊</div>
+              <p style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>
+                No recent sales data
+              </p>
+              <p style={{ fontSize: '14px' }}>
+                ရောင်းချမှုမရှိသေးပါ - Create some orders to see top products
+              </p>
+            </div>
           )}
         </div>
 
@@ -184,7 +260,19 @@ const Dashboard = () => {
               </tbody>
             </table>
           ) : (
-            <p style={{ color: '#666', textAlign: 'center', padding: '20px' }}>All products in stock</p>
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '40px 20px',
+              color: '#10b981'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
+              <p style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>
+                All products in stock
+              </p>
+              <p style={{ fontSize: '14px', color: '#9ca3af' }}>
+                ကုန်ပစ္စည်းအားလုံးလုံလောက်သည် - No low stock alerts
+              </p>
+            </div>
           )}
         </div>
       </div>

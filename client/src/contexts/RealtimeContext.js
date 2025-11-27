@@ -20,26 +20,40 @@ export const RealtimeProvider = ({ children }) => {
 
   useEffect(() => {
     // Initialize Socket.IO connection
-    const socket = io(process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001', {
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+    const baseUrl = apiUrl.replace('/api', '');
+    
+    console.log('🔌 RealtimeContext connecting to:', baseUrl);
+    
+    const socket = io(baseUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 10,
-      timeout: 20000
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: Infinity,
+      timeout: 20000,
+      path: '/socket.io/',
+      autoConnect: true,
+      withCredentials: true
     });
 
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('✅ Real-time connection established');
+      console.log('✅ Real-time connection established:', socket.id);
       setConnected(true);
       notification.success('Real-time sync connected', 3000);
     });
 
-    socket.on('disconnect', () => {
-      console.log('❌ Real-time connection lost');
+    socket.on('disconnect', (reason) => {
+      console.log('❌ Real-time connection lost:', reason);
       setConnected(false);
       notification.warning('Real-time sync disconnected', 3000);
+      
+      // Auto-reconnect on server disconnect
+      if (reason === 'io server disconnect') {
+        socket.connect();
+      }
     });
 
     socket.on('reconnect', (attemptNumber) => {
@@ -47,8 +61,17 @@ export const RealtimeProvider = ({ children }) => {
       notification.success('Real-time sync reconnected', 3000);
     });
 
+    socket.on('connect_error', (error) => {
+      console.error('❌ Socket connection error:', error.message);
+    });
+
     socket.on('error', (error) => {
       console.error('Socket error:', error);
+    });
+
+    // Handle heartbeat
+    socket.on('ping', () => {
+      socket.emit('pong');
     });
 
     // Global event listeners

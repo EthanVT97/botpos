@@ -1,75 +1,74 @@
 import React from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
-const ErrorMessage = ({ message, onRetry }) => {
+const ErrorMessage = ({ 
+  message = 'Failed to load data', 
+  onRetry,
+  details 
+}) => {
   return (
     <div style={{
-      padding: '24px',
-      background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
-      border: '2px solid #fca5a5',
-      borderRadius: '12px',
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
-      gap: '16px',
-      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)',
-      animation: 'slideIn 0.3s ease'
+      justifyContent: 'center',
+      padding: '40px 20px',
+      textAlign: 'center'
     }}>
       <div style={{
-        width: '48px',
-        height: '48px',
-        borderRadius: '12px',
-        background: 'rgba(220, 38, 38, 0.1)',
+        width: '64px',
+        height: '64px',
+        borderRadius: '50%',
+        background: '#fee2e2',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        flexShrink: 0
+        marginBottom: '16px'
       }}>
-        <AlertCircle size={28} color="#dc2626" />
+        <AlertCircle size={32} color="#dc2626" />
       </div>
-      <div style={{ flex: 1 }}>
-        <p style={{ 
-          color: '#dc2626', 
-          fontWeight: '700', 
-          marginBottom: '6px',
-          fontSize: '16px'
-        }}>
-          Error Occurred
-        </p>
-        <p style={{ 
-          color: '#991b1b', 
+      
+      <h3 style={{
+        fontSize: '18px',
+        fontWeight: '600',
+        color: '#1a1a1a',
+        marginBottom: '8px'
+      }}>
+        {message}
+      </h3>
+      
+      {details && (
+        <p style={{
           fontSize: '14px',
-          lineHeight: '1.5'
+          color: '#666',
+          marginBottom: '16px',
+          maxWidth: '400px'
         }}>
-          {message || 'Something went wrong. Please try again.'}
+          {details}
         </p>
-      </div>
+      )}
+      
       {onRetry && (
-        <button 
-          className="btn btn-danger" 
+        <button
           onClick={onRetry}
           style={{
+            padding: '10px 20px',
+            background: '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            padding: '10px 20px'
+            gap: '8px'
           }}
         >
           <RefreshCw size={16} />
-          Retry
+          Try Again
         </button>
       )}
-      <style>{`
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
 };

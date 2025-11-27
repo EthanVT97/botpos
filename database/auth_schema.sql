@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS roles (
 -- Insert default roles with permissions
 INSERT INTO roles (name, description, permissions) VALUES
   ('admin', 'Full system access', '{
+    "all": true,
     "dashboard": true,
     "pos": true,
     "products": {"view": true, "create": true, "edit": true, "delete": true},
@@ -34,7 +35,8 @@ INSERT INTO roles (name, description, permissions) VALUES
     "chat": {"view": true, "send": true},
     "bot_flows": {"view": true, "create": true, "edit": true, "delete": true},
     "uom": {"view": true, "create": true, "edit": true, "delete": true},
-    "selling_price": {"view": true, "edit": true}
+    "selling_price": {"view": true, "edit": true},
+    "stores": {"view": true, "create": true, "edit": true, "delete": true}
   }'),
   ('manager', 'Manager access - no user management', '{
     "dashboard": true,
@@ -51,7 +53,8 @@ INSERT INTO roles (name, description, permissions) VALUES
     "chat": {"view": true, "send": true},
     "bot_flows": {"view": true, "create": true, "edit": true, "delete": false},
     "uom": {"view": true, "create": true, "edit": true, "delete": false},
-    "selling_price": {"view": true, "edit": true}
+    "selling_price": {"view": true, "edit": true},
+    "stores": {"view": true, "create": true, "edit": true, "delete": false}
   }'),
   ('cashier', 'POS and order access only', '{
     "dashboard": true,
@@ -68,7 +71,8 @@ INSERT INTO roles (name, description, permissions) VALUES
     "chat": {"view": true, "send": true},
     "bot_flows": {"view": false, "create": false, "edit": false, "delete": false},
     "uom": {"view": true, "create": false, "edit": false, "delete": false},
-    "selling_price": {"view": true, "edit": false}
+    "selling_price": {"view": true, "edit": false},
+    "stores": {"view": true, "create": false, "edit": false, "delete": false}
   }'),
   ('viewer', 'Read-only access', '{
     "dashboard": true,
@@ -85,7 +89,8 @@ INSERT INTO roles (name, description, permissions) VALUES
     "chat": {"view": true, "send": false},
     "bot_flows": {"view": true, "create": false, "edit": false, "delete": false},
     "uom": {"view": true, "create": false, "edit": false, "delete": false},
-    "selling_price": {"view": true, "edit": false}
+    "selling_price": {"view": true, "edit": false},
+    "stores": {"view": true, "create": false, "edit": false, "delete": false}
   }')
 ON CONFLICT (name) DO UPDATE SET
   permissions = EXCLUDED.permissions,

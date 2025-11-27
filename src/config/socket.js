@@ -34,16 +34,17 @@ function initializeSocket(server) {
     path: '/socket.io/'
   });
 
-  // Heartbeat mechanism for production (required by Render)
-  if (isProduction) {
-    setInterval(() => {
-      io.sockets.sockets.forEach((socket) => {
-        if (socket.connected) {
-          socket.emit('ping');
-        }
-      });
-    }, 30000); // Every 30 seconds
-  }
+  // Heartbeat mechanism (always enabled for connection stability)
+  const heartbeatInterval = setInterval(() => {
+    io.sockets.sockets.forEach((socket) => {
+      if (socket.connected) {
+        socket.emit('ping');
+      }
+    });
+  }, 25000); // Every 25 seconds (Render requires < 30s)
+
+  // Store interval for cleanup
+  io.heartbeatInterval = heartbeatInterval;
 
   io.on('connection', (socket) => {
     console.log(`✅ Client connected: ${socket.id} (Transport: ${socket.conn.transport.name})`);
