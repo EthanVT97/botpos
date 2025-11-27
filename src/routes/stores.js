@@ -174,7 +174,6 @@ router.get('/:id/inventory', async (req, res) => {
         si.last_restocked_at
       FROM products p
       LEFT JOIN store_inventory si ON p.id = si.product_id AND si.store_id = $1
-      WHERE p.is_active = TRUE
       ORDER BY p.name
     `, [req.params.id]);
 
