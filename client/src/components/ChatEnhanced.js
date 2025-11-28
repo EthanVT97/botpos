@@ -433,7 +433,7 @@ const ChatEnhanced = ({ api }) => {
               <div
                 key={session.customer_id}
                 className={`chat-session ${selectedCustomer?.id === session.customer_id ? 'active' : ''}`}
-                onClick={() => setSelectedCustomer({ id: session.customer_id, ...session })}
+                onClick={() => setSelectedCustomer({ ...session, id: session.customer_id })}
               >
                 <div className="session-avatar">
                   {session.customers?.name?.charAt(0).toUpperCase() || <Users size={20} />}

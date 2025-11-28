@@ -2,6 +2,12 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
+console.log('🔧 API Client Configuration:', {
+  REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+  API_URL: API_URL,
+  timestamp: new Date().toISOString()
+});
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -12,6 +18,14 @@ const api = axios.create({
 // Request interceptor for adding auth tokens
 api.interceptors.request.use(
   (config) => {
+    console.log('📤 Outgoing Request:', {
+      method: config.method?.toUpperCase(),
+      baseURL: config.baseURL,
+      url: config.url,
+      fullURL: config.baseURL + config.url,
+      headers: config.headers
+    });
+    
     const token = localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
