@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   MessageCircle, Send, X, Users, Phone, Mail, CheckCheck, Check,
   Wifi, WifiOff, Paperclip, Search, Tag, FileText, Download,
-  Plus, Edit2, Trash2, Save, MessageSquare, Clock
+  Plus, Trash2, MessageSquare, Clock, Image, File, Smile
 } from 'lucide-react';
 import io from 'socket.io-client';
 import { sanitizeHTML } from '../utils/sanitize';
-import './Chat.css';
+import './ChatModern.css';
 
 const ChatEnhanced = ({ api }) => {
   // State management
@@ -367,6 +367,15 @@ const ChatEnhanced = ({ api }) => {
     session.customers?.phone?.includes(searchQuery)
   );
 
+  const formatMessageTime = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
+
   return (
     <div className="chat-container">
       {/* Sidebar */}
@@ -396,42 +405,49 @@ const ChatEnhanced = ({ api }) => {
         </div>
 
         <div className="chat-sessions">
-          {filteredSessions.map(session => (
-            <div
-              key={session.customer_id}
-              className={`chat-session ${selectedCustomer?.id === session.customer_id ? 'active' : ''}`}
-              onClick={() => setSelectedCustomer({ id: session.customer_id, ...session })}
-            >
-              <div className="session-avatar">
-                <Users size={20} />
-              </div>
-              <div className="session-info">
-                <div className="session-name">
-                  {session.customers?.name || 'Unknown'}
-                  {typingCustomers.has(session.customer_id) && (
-                    <span className="typing-indicator">typing...</span>
+          {filteredSessions.length === 0 ? (
+            <div className="chat-empty-state" style={{ padding: '40px 20px' }}>
+              <Users size={48} />
+              <p style={{ marginTop: '12px' }}>No conversations yet</p>
+            </div>
+          ) : (
+            filteredSessions.map(session => (
+              <div
+                key={session.customer_id}
+                className={`chat-session ${selectedCustomer?.id === session.customer_id ? 'active' : ''}`}
+                onClick={() => setSelectedCustomer({ id: session.customer_id, ...session })}
+              >
+                <div className="session-avatar">
+                  {session.customers?.name?.charAt(0).toUpperCase() || <Users size={20} />}
+                </div>
+                <div className="session-info">
+                  <div className="session-name">
+                    {session.customers?.name || 'Unknown'}
+                    {typingCustomers.has(session.customer_id) && (
+                      <span className="typing-indicator">typing...</span>
+                    )}
+                  </div>
+                  <div className="session-channel">{session.channel}</div>
+                  {session.tags && session.tags.length > 0 && (
+                    <div className="session-tags">
+                      {session.tags.map(tag => (
+                        <span
+                          key={tag.id}
+                          className="tag-badge"
+                          style={{ backgroundColor: tag.color }}
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <div className="session-channel">{session.channel}</div>
-                {session.tags && session.tags.length > 0 && (
-                  <div className="session-tags">
-                    {session.tags.map(tag => (
-                      <span
-                        key={tag.id}
-                        className="tag-badge"
-                        style={{ backgroundColor: tag.color }}
-                      >
-                        {tag.name}
-                      </span>
-                    ))}
-                  </div>
+                {session.unread_count > 0 && (
+                  <div className="session-unread">{session.unread_count}</div>
                 )}
               </div>
-              {session.unread_count > 0 && (
-                <div className="session-unread">{session.unread_count}</div>
-              )}
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -554,9 +570,14 @@ const ChatEnhanced = ({ api }) => {
             {/* Messages */}
             <div className="chat-messages">
               {loading ? (
-                <div className="chat-loading">Loading messages...</div>
+                <div className="chat-loading">
+                  <div className="loading-spinner"></div>
+                </div>
               ) : messages.length === 0 ? (
-                <div className="chat-empty">No messages yet</div>
+                <div className="chat-empty">
+                  <MessageCircle size={48} />
+                  <p style={{ marginTop: '12px' }}>No messages yet</p>
+                </div>
               ) : (
                 messages.map(msg => (
                   <div
@@ -571,18 +592,22 @@ const ChatEnhanced = ({ api }) => {
                       {msg.attachment_url && (
                         <div className="message-attachment">
                           <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer">
-                            <Paperclip size={14} /> {msg.attachment_name}
+                            {msg.attachment_type?.startsWith('image/') ? (
+                              <><Image size={14} /> {msg.attachment_name}</>
+                            ) : (
+                              <><File size={14} /> {msg.attachment_name}</>
+                            )}
                           </a>
                         </div>
                       )}
-                    </div>
-                    <div className="message-meta">
-                      <span className="message-time">
-                        {new Date(msg.created_at).toLocaleTimeString()}
-                      </span>
-                      {msg.sender_type === 'admin' && (
-                        msg.is_read ? <CheckCheck size={14} /> : <Check size={14} />
-                      )}
+                      <div className="message-meta">
+                        <span className="message-time">
+                          {formatMessageTime(msg.created_at)}
+                        </span>
+                        {msg.sender_type === 'admin' && (
+                          msg.is_read ? <CheckCheck size={16} /> : <Check size={16} />
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -602,20 +627,39 @@ const ChatEnhanced = ({ api }) => {
                 </div>
               )}
               
+              {/* Templates Dropdown */}
+              {showTemplates && templates.length > 0 && (
+                <div className="templates-dropdown">
+                  <h5>Quick Replies</h5>
+                  {templates.map(template => (
+                    <div
+                      key={template.id}
+                      className="template-item"
+                      onClick={() => applyTemplate(template)}
+                    >
+                      <strong>{template.name}</strong>
+                      <p>{template.content}</p>
+                      {template.shortcut && <span className="shortcut">{template.shortcut}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
               <div className="chat-input">
                 <button
                   className="btn-icon"
                   onClick={() => setShowTemplates(!showTemplates)}
                   title="Quick replies"
                 >
-                  <MessageSquare size={18} />
+                  <MessageSquare size={20} />
                 </button>
                 <button
                   className="btn-icon"
                   onClick={() => fileInputRef.current?.click()}
                   title="Attach file"
+                  disabled={uploading}
                 >
-                  <Paperclip size={18} />
+                  <Paperclip size={20} />
                 </button>
                 <input
                   type="file"
@@ -632,35 +676,22 @@ const ChatEnhanced = ({ api }) => {
                     setNewMessage(e.target.value);
                     handleTyping();
                   }}
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                   disabled={uploading}
                 />
                 <button
                   className="btn-send"
                   onClick={sendMessage}
                   disabled={(!newMessage.trim() && !selectedFile) || uploading}
+                  title={uploading ? 'Uploading...' : 'Send message'}
                 >
-                  {uploading ? <Clock size={18} /> : <Send size={18} />}
+                  {uploading ? (
+                    <div className="loading-spinner"></div>
+                  ) : (
+                    <Send size={20} />
+                  )}
                 </button>
               </div>
-
-              {/* Templates Dropdown */}
-              {showTemplates && (
-                <div className="templates-dropdown">
-                  <h5>Quick Replies</h5>
-                  {templates.map(template => (
-                    <div
-                      key={template.id}
-                      className="template-item"
-                      onClick={() => applyTemplate(template)}
-                    >
-                      <strong>{template.name}</strong>
-                      <p>{template.content}</p>
-                      {template.shortcut && <span className="shortcut">{template.shortcut}</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </>
         ) : (

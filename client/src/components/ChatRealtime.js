@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, Send, X, Users, Phone, Mail, CheckCheck, Check, Wifi, WifiOff } from 'lucide-react';
 import io from 'socket.io-client';
 import { sanitizeHTML } from '../utils/sanitize';
-import './Chat.css';
+import './ChatModern.css';
 
 const ChatRealtime = ({ api }) => {
   const [sessions, setSessions] = useState([]);
@@ -285,68 +285,60 @@ const ChatRealtime = ({ api }) => {
       {/* Chat Sessions List */}
       <div className="chat-sidebar">
         <div className="chat-sidebar-header">
-          <div>
-            <h3>
-              <MessageCircle size={22} />
-              Real-Time Chat
-              {connected ? (
-                <Wifi size={16} color="#10b981" style={{ marginLeft: '8px' }} />
-              ) : (
-                <WifiOff size={16} color="#ef4444" style={{ marginLeft: '8px' }} />
-              )}
-            </h3>
-            <div className="subtitle">
-              {connected ? '🟢 Connected' : '🔴 Disconnected'} - {sessions.length} active
-            </div>
+          <h3>
+            <MessageCircle size={20} />
+            Messages {unreadCount > 0 && <span className="badge">{unreadCount}</span>}
+          </h3>
+          <div className="connection-status">
+            {connected ? (
+              <Wifi size={16} className="text-success" title="Connected" />
+            ) : (
+              <WifiOff size={16} className="text-danger" title="Disconnected" />
+            )}
           </div>
-          {unreadCount > 0 && (
-            <span className="unread-badge">{unreadCount}</span>
-          )}
         </div>
         
         {sessions.length > 0 && (
-          <input
-            type="text"
-            className="chat-search"
-            placeholder="Search chats... / ရှာဖွေရန်..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div className="chat-search">
+            <input
+              type="text"
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         )}
         
-        <div className="chat-sessions-list">
+        <div className="chat-sessions">
           {filteredSessions.length === 0 ? (
-            <div className="empty-state">
-              <Users size={64} color="#cbd5e1" />
-              <p style={{ marginTop: '16px', fontSize: '15px', fontWeight: '500' }}>
+            <div className="chat-empty-state" style={{ padding: '40px 20px' }}>
+              <Users size={48} />
+              <p style={{ marginTop: '12px' }}>
                 {searchQuery ? 'No chats found' : 'No active chats'}
-              </p>
-              <p style={{ fontSize: '13px', color: '#9ca3af' }}>
-                {searchQuery ? 'ရှာမတွေ့ပါ' : 'စကားပြောမှုမရှိသေးပါ'}
               </p>
             </div>
           ) : (
             filteredSessions.map((session) => (
               <div
                 key={session.id}
-                className={`chat-session-item ${selectedCustomer?.id === session.customers.id ? 'active' : ''}`}
+                className={`chat-session ${selectedCustomer?.id === session.customers.id ? 'active' : ''}`}
                 onClick={() => handleSelectCustomer(session)}
               >
-                <div className={`session-avatar ${session.is_active ? 'online' : ''}`}>
+                <div className="session-avatar">
                   {session.customers.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="session-info">
-                  <div className="session-header">
-                    <span className="session-name">{session.customers.name}</span>
+                  <div className="session-name">
+                    {session.customers.name}
                     {getChannelBadge(session.channel)}
                   </div>
-                  <div className="session-meta">
-                    <span className="session-time">{formatTime(session.last_message_at)}</span>
-                    {session.unread_count > 0 && (
-                      <span className="session-unread">{session.unread_count}</span>
-                    )}
+                  <div className="session-channel">
+                    {formatTime(session.last_message_at)}
                   </div>
                 </div>
+                {session.unread_count > 0 && (
+                  <div className="session-unread">{session.unread_count}</div>
+                )}
               </div>
             ))
           )}
@@ -359,12 +351,12 @@ const ChatRealtime = ({ api }) => {
           <>
             <div className="chat-header">
               <div className="chat-header-info">
-                <div className="chat-avatar">
+                <div className="session-avatar">
                   {selectedCustomer.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h3>{selectedCustomer.name}</h3>
-                  <div className="customer-details">
+                  <h4>{selectedCustomer.name}</h4>
+                  <div className="chat-header-details">
                     {selectedCustomer.phone && (
                       <span><Phone size={12} /> {selectedCustomer.phone}</span>
                     )}
@@ -387,10 +379,11 @@ const ChatRealtime = ({ api }) => {
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`message ${msg.sender_type === 'admin' ? 'message-sent' : 'message-received'}`}
+                  className={`chat-message ${msg.sender_type === 'admin' ? 'sent' : 'received'}`}
                 >
-                  <div className="message-bubble">
-                    <p 
+                  <div className="message-content">
+                    <div 
+                      className="message-text"
                       dangerouslySetInnerHTML={{
                         __html: sanitizeHTML(msg.message, {
                           ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'br'],
@@ -402,11 +395,12 @@ const ChatRealtime = ({ api }) => {
                       <span className="message-time">
                         {new Date(msg.created_at).toLocaleTimeString('en-US', { 
                           hour: '2-digit', 
-                          minute: '2-digit' 
+                          minute: '2-digit',
+                          hour12: true
                         })}
                       </span>
                       {msg.sender_type === 'admin' && (
-                        msg.is_read ? <CheckCheck size={14} /> : <Check size={14} />
+                        msg.is_read ? <CheckCheck size={16} /> : <Check size={16} />
                       )}
                     </div>
                   </div>
@@ -415,35 +409,29 @@ const ChatRealtime = ({ api }) => {
               <div ref={messagesEndRef} />
             </div>
 
-            <form className="chat-input-form" onSubmit={handleSendMessage}>
-              <input
-                type="text"
-                className="chat-input"
-                placeholder="Type a message... / မက်ဆေ့ခ်ျရိုက်ပါ..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                disabled={loading || !connected}
-              />
-              <button 
-                type="submit" 
-                className="btn-send"
-                disabled={loading || !newMessage.trim() || !connected}
-                title={loading ? 'Sending...' : !connected ? 'Disconnected' : 'Send message'}
-              >
-                {loading ? (
-                  <div style={{ 
-                    width: '20px', 
-                    height: '20px', 
-                    border: '2px solid white', 
-                    borderTopColor: 'transparent',
-                    borderRadius: '50%',
-                    animation: 'spin 0.6s linear infinite'
-                  }} />
-                ) : (
-                  <Send size={20} />
-                )}
-              </button>
-            </form>
+            <div className="chat-input-area">
+              <form className="chat-input" onSubmit={handleSendMessage}>
+                <input
+                  type="text"
+                  placeholder="Type a message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  disabled={loading || !connected}
+                />
+                <button 
+                  type="submit" 
+                  className="btn-send"
+                  disabled={loading || !newMessage.trim() || !connected}
+                  title={loading ? 'Sending...' : !connected ? 'Disconnected' : 'Send message'}
+                >
+                  {loading ? (
+                    <div className="loading-spinner" />
+                  ) : (
+                    <Send size={20} />
+                  )}
+                </button>
+              </form>
+            </div>
           </>
         ) : (
           <div className="chat-empty-state">
