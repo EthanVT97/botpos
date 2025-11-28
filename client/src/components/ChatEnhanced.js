@@ -265,7 +265,7 @@ const ChatEnhanced = ({ api }) => {
     }, 3000);
   };
 
-  const useTemplate = async (template) => {
+  const applyTemplate = async (template) => {
     setNewMessage(template.content);
     setShowTemplates(false);
     
@@ -652,7 +652,7 @@ const ChatEnhanced = ({ api }) => {
                     <div
                       key={template.id}
                       className="template-item"
-                      onClick={() => useTemplate(template)}
+                      onClick={() => applyTemplate(template)}
                     >
                       <strong>{template.name}</strong>
                       <p>{template.content}</p>
