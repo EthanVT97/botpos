@@ -12,6 +12,7 @@
     "@mui/x-data-grid": "^8.18.0",
     "@mui/x-data-grid-generator": "^8.18.0",
     "axios": "^1.6.2",
+    "dompurify": "^3.3.0",
     "lucide-react": "^0.294.0",
     "react": "^17.0.0 || ^18.0.0 || ^19.0.0",
     "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0",

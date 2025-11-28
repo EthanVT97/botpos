@@ -45,6 +45,22 @@ function initializeSocket(server) {
 
   // Store interval for cleanup
   io.heartbeatInterval = heartbeatInterval;
+  
+  // Cleanup on server shutdown
+  const cleanup = () => {
+    console.log('Cleaning up WebSocket resources...');
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+    }
+    if (io) {
+      io.close(() => {
+        console.log('Socket.IO server closed');
+      });
+    }
+  };
+  
+  process.on('SIGTERM', cleanup);
+  process.on('SIGINT', cleanup);
 
   io.on('connection', (socket) => {
     console.log(`✅ Client connected: ${socket.id} (Transport: ${socket.conn.transport.name})`);

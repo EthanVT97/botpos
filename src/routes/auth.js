@@ -9,6 +9,7 @@ const {
   authenticate
 } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
+const { authLimiter } = require('../middleware/rateLimiter');
 
 /**
  * @route   POST /api/auth/register
@@ -16,6 +17,7 @@ const { body, validationResult } = require('express-validator');
  * @access  Public (but should be restricted in production)
  */
 router.post('/register',
+  authLimiter, // Add rate limiting
   [
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 6 }),
@@ -102,6 +104,7 @@ router.post('/register',
  * @access  Public
  */
 router.post('/login',
+  authLimiter, // Add rate limiting
   [
     body('email').isEmail().normalizeEmail(),
     body('password').notEmpty()

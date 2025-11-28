@@ -2,7 +2,6 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 // PostgreSQL connection pool
-// Render PostgreSQL requires SSL even in development
 const isRenderDB = process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -45,8 +44,8 @@ const query = async (text, params) => {
 // Helper function to get a client from the pool (for transactions)
 const getClient = async () => {
   const client = await pool.connect();
-  const query = client.query.bind(client);
-  const release = client.release.bind(client);
+  const originalQuery = client.query.bind(client);
+  const originalRelease = client.release.bind(client);
   
   const timeout = setTimeout(() => {
     console.error('A client has been checked out for more than 5 seconds!');
@@ -54,181 +53,205 @@ const getClient = async () => {
   
   client.query = (...args) => {
     client.lastQuery = args;
-    return query(...args);
+    return originalQuery(...args);
   };
   
   client.release = () => {
     clearTimeout(timeout);
-    client.query = query;
-    client.release = release;
-    return release();
+    client.query = originalQuery;
+    client.release = originalRelease;
+    return originalRelease();
   };
   
   return client;
 };
 
-// Simple query builder for common operations
+// Whitelist of allowed tables and columns for SQL injection prevention
+const ALLOWED_TABLES = [
+  'products', 'orders', 'customers', 'users', 'categories', 
+  'order_items', 'inventory_movements', 'settings', 'roles',
+  'chat_messages', 'chat_sessions', 'stores', 'store_transfers',
+  'uom', 'product_uom', 'selling_prices', 'bot_flows'
+];
+
+const ALLOWED_COLUMNS = {
+  products: ['id', 'name', 'name_mm', 'description', 'price', 'cost', 'category_id', 'sku', 'barcode', 'stock_quantity', 'image_url', 'base_uom_id', 'created_at', 'updated_at'],
+  orders: ['id', 'customer_id', 'store_id', 'total_amount', 'discount', 'tax', 'payment_method', 'status', 'notes', 'source', 'created_at', 'updated_at'],
+  customers: ['id', 'name', 'phone', 'email', 'address', 'viber_id', 'telegram_id', 'messenger_id', 'created_at', 'updated_at'],
+  users: ['id', 'email', 'full_name', 'role', 'is_active', 'created_at', 'updated_at'],
+  categories: ['id', 'name', 'name_mm', 'description', 'created_at', 'updated_at'],
+};
+
+// Validate identifier (table or column name)
+const validateIdentifier = (identifier, type = 'identifier') => {
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(identifier)) {
+    throw new Error(`Invalid ${type}: ${identifier}`);
+  }
+  return identifier;
+};
+
+// Validate table name against whitelist
+const validateTable = (table) => {
+  const validTable = validateIdentifier(table, 'table');
+  if (!ALLOWED_TABLES.includes(validTable)) {
+    throw new Error(`Table not allowed: ${table}`);
+  }
+  return validTable;
+};
+
+// Validate column name
+const validateColumn = (column, table = null) => {
+  const validColumn = validateIdentifier(column, 'column');
+  
+  // If table is specified, check against allowed columns
+  if (table && ALLOWED_COLUMNS[table]) {
+    if (!ALLOWED_COLUMNS[table].includes(validColumn)) {
+      throw new Error(`Column not allowed for table ${table}: ${column}`);
+    }
+  }
+  
+  return validColumn;
+};
+
+// Simple query builder with SQL injection protection
 const db = {
-  // SELECT queries
-  from: (table) => ({
-    select: (columns = '*') => ({
-      eq: (column, value) => ({
-        single: async () => {
-          try {
-            const result = await query(
-              `SELECT ${columns} FROM ${table} WHERE ${column} = $1 LIMIT 1`,
-              [value]
-            );
-            return { data: result.rows[0] || null, error: null };
-          } catch (error) {
-            return { data: null, error };
-          }
-        },
-        execute: async () => {
-          try {
-            const result = await query(
-              `SELECT ${columns} FROM ${table} WHERE ${column} = $1`,
-              [value]
-            );
-            return { data: result.rows, error: null };
-          } catch (error) {
-            return { data: null, error };
-          }
-        }
-      }),
-      in: (column, values) => ({
-        execute: async () => {
-          try {
-            const placeholders = values.map((_, i) => `$${i + 1}`).join(',');
-            const result = await query(
-              `SELECT ${columns} FROM ${table} WHERE ${column} IN (${placeholders})`,
-              values
-            );
-            return { data: result.rows, error: null };
-          } catch (error) {
-            return { data: null, error };
-          }
-        }
-      }),
-      order: (column, options = {}) => ({
-        execute: async () => {
-          try {
+  from: (table) => {
+    const validTable = validateTable(table);
+    
+    return {
+      select: (columns = '*') => {
+        const validColumns = columns === '*' ? '*' : 
+          columns.split(',').map(c => validateColumn(c.trim(), validTable)).join(', ');
+        
+        return {
+          eq: (column, value) => {
+            const validColumn = validateColumn(column, validTable);
+            
+            return {
+              single: async () => {
+                try {
+                  const result = await query(
+                    `SELECT ${validColumns} FROM ${validTable} WHERE ${validColumn} = $1 LIMIT 1`,
+                    [value]
+                  );
+                  return { data: result.rows[0] || null, error: null };
+                } catch (error) {
+                  return { data: null, error };
+                }
+              },
+              execute: async () => {
+                try {
+                  const result = await query(
+                    `SELECT ${validColumns} FROM ${validTable} WHERE ${validColumn} = $1`,
+                    [value]
+                  );
+                  return { data: result.rows, error: null };
+                } catch (error) {
+                  return { data: null, error };
+                }
+              }
+            };
+          },
+          
+          in: (column, values) => {
+            const validColumn = validateColumn(column, validTable);
+            
+            return {
+              execute: async () => {
+                try {
+                  const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+                  const result = await query(
+                    `SELECT ${validColumns} FROM ${validTable} WHERE ${validColumn} IN (${placeholders})`,
+                    values
+                  );
+                  return { data: result.rows, error: null };
+                } catch (error) {
+                  return { data: null, error };
+                }
+              }
+            };
+          },
+          
+          order: (column, options = {}) => {
+            const validColumn = validateColumn(column, validTable);
             const direction = options.ascending ? 'ASC' : 'DESC';
-            const result = await query(
-              `SELECT ${columns} FROM ${table} ORDER BY ${column} ${direction}`
-            );
-            return { data: result.rows, error: null };
-          } catch (error) {
-            return { data: null, error };
-          }
-        },
-        limit: (limitValue) => ({
+            
+            return {
+              execute: async () => {
+                try {
+                  const result = await query(
+                    `SELECT ${validColumns} FROM ${validTable} ORDER BY ${validColumn} ${direction}`
+                  );
+                  return { data: result.rows, error: null };
+                } catch (error) {
+                  return { data: null, error };
+                }
+              },
+              limit: (limitValue) => ({
+                execute: async () => {
+                  try {
+                    const result = await query(
+                      `SELECT ${validColumns} FROM ${validTable} ORDER BY ${validColumn} ${direction} LIMIT $1`,
+                      [limitValue]
+                    );
+                    return { data: result.rows, error: null };
+                  } catch (error) {
+                    return { data: null, error };
+                  }
+                }
+              })
+            };
+          },
+          
+          limit: (limitValue) => ({
+            execute: async () => {
+              try {
+                const result = await query(
+                  `SELECT ${validColumns} FROM ${validTable} LIMIT $1`,
+                  [limitValue]
+                );
+                return { data: result.rows, error: null };
+              } catch (error) {
+                return { data: null, error };
+              }
+            }
+          }),
+          
           execute: async () => {
             try {
-              const direction = options.ascending ? 'ASC' : 'DESC';
-              const result = await query(
-                `SELECT ${columns} FROM ${table} ORDER BY ${column} ${direction} LIMIT $1`,
-                [limitValue]
-              );
+              const result = await query(`SELECT ${validColumns} FROM ${validTable}`);
               return { data: result.rows, error: null };
             } catch (error) {
               return { data: null, error };
             }
           }
-        })
-      }),
-      limit: (limitValue) => ({
-        execute: async () => {
-          try {
-            const result = await query(
-              `SELECT ${columns} FROM ${table} LIMIT $1`,
-              [limitValue]
-            );
-            return { data: result.rows, error: null };
-          } catch (error) {
-            return { data: null, error };
-          }
-        }
-      }),
-      execute: async () => {
-        try {
-          const result = await query(`SELECT ${columns} FROM ${table}`);
-          return { data: result.rows, error: null };
-        } catch (error) {
-          return { data: null, error };
-        }
-      }
-    }),
-    
-    // INSERT queries
-    insert: (values) => ({
-      select: () => ({
-        single: async () => {
-          try {
-            const keys = Object.keys(values[0]);
-            const placeholders = keys.map((_, i) => `$${i + 1}`).join(',');
-            const result = await query(
-              `INSERT INTO ${table} (${keys.join(',')}) VALUES (${placeholders}) RETURNING *`,
-              Object.values(values[0])
-            );
-            return { data: result.rows[0], error: null };
-          } catch (error) {
-            return { data: null, error };
-          }
-        },
-        execute: async () => {
-          try {
-            const keys = Object.keys(values[0]);
-            const placeholders = keys.map((_, i) => `$${i + 1}`).join(',');
-            const result = await query(
-              `INSERT INTO ${table} (${keys.join(',')}) VALUES (${placeholders}) RETURNING *`,
-              Object.values(values[0])
-            );
-            return { data: result.rows, error: null };
-          } catch (error) {
-            return { data: null, error };
-          }
-        }
-      }),
-      execute: async () => {
-        try {
-          const keys = Object.keys(values[0]);
-          const placeholders = keys.map((_, i) => `$${i + 1}`).join(',');
-          const result = await query(
-            `INSERT INTO ${table} (${keys.join(',')}) VALUES (${placeholders})`,
-            Object.values(values[0])
-          );
-          return { data: null, error: null };
-        } catch (error) {
-          return { data: null, error };
-        }
-      }
-    }),
-    
-    // UPDATE queries
-    update: (values) => ({
-      eq: (column, value) => ({
+        };
+      },
+      
+      insert: (values) => ({
         select: () => ({
           single: async () => {
             try {
-              const keys = Object.keys(values);
-              const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(',');
+              const keys = Object.keys(values[0]);
+              keys.forEach(k => validateColumn(k, validTable));
+              const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
               const result = await query(
-                `UPDATE ${table} SET ${setClause} WHERE ${column} = $${keys.length + 1} RETURNING *`,
-                [...Object.values(values), value]
+                `INSERT INTO ${validTable} (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+                Object.values(values[0])
               );
-              return { data: result.rows[0] || null, error: null };
+              return { data: result.rows[0], error: null };
             } catch (error) {
               return { data: null, error };
             }
           },
           execute: async () => {
             try {
-              const keys = Object.keys(values);
-              const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(',');
+              const keys = Object.keys(values[0]);
+              keys.forEach(k => validateColumn(k, validTable));
+              const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
               const result = await query(
-                `UPDATE ${table} SET ${setClause} WHERE ${column} = $${keys.length + 1} RETURNING *`,
-                [...Object.values(values), value]
+                `INSERT INTO ${validTable} (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+                Object.values(values[0])
               );
               return { data: result.rows, error: null };
             } catch (error) {
@@ -238,49 +261,105 @@ const db = {
         }),
         execute: async () => {
           try {
-            const keys = Object.keys(values);
-            const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(',');
-            await query(
-              `UPDATE ${table} SET ${setClause} WHERE ${column} = $${keys.length + 1}`,
-              [...Object.values(values), value]
+            const keys = Object.keys(values[0]);
+            keys.forEach(k => validateColumn(k, validTable));
+            const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+            const result = await query(
+              `INSERT INTO ${validTable} (${keys.join(', ')}) VALUES (${placeholders})`,
+              Object.values(values[0])
             );
             return { data: null, error: null };
           } catch (error) {
             return { data: null, error };
           }
         }
-      })
-    }),
-    
-    // DELETE queries
-    delete: () => ({
-      eq: (column, value) => ({
-        execute: async () => {
-          try {
-            await query(`DELETE FROM ${table} WHERE ${column} = $1`, [value]);
-            return { data: null, error: null };
-          } catch (error) {
-            return { data: null, error };
-          }
+      }),
+      
+      update: (values) => ({
+        eq: (column, value) => {
+          const validColumn = validateColumn(column, validTable);
+          
+          return {
+            select: () => ({
+              single: async () => {
+                try {
+                  const keys = Object.keys(values);
+                  keys.forEach(k => validateColumn(k, validTable));
+                  const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
+                  const result = await query(
+                    `UPDATE ${validTable} SET ${setClause} WHERE ${validColumn} = $${keys.length + 1} RETURNING *`,
+                    [...Object.values(values), value]
+                  );
+                  return { data: result.rows[0] || null, error: null };
+                } catch (error) {
+                  return { data: null, error };
+                }
+              },
+              execute: async () => {
+                try {
+                  const keys = Object.keys(values);
+                  keys.forEach(k => validateColumn(k, validTable));
+                  const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
+                  const result = await query(
+                    `UPDATE ${validTable} SET ${setClause} WHERE ${validColumn} = $${keys.length + 1} RETURNING *`,
+                    [...Object.values(values), value]
+                  );
+                  return { data: result.rows, error: null };
+                } catch (error) {
+                  return { data: null, error };
+                }
+              }
+            }),
+            execute: async () => {
+              try {
+                const keys = Object.keys(values);
+                keys.forEach(k => validateColumn(k, validTable));
+                const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
+                await query(
+                  `UPDATE ${validTable} SET ${setClause} WHERE ${validColumn} = $${keys.length + 1}`,
+                  [...Object.values(values), value]
+                );
+                return { data: null, error: null };
+              } catch (error) {
+                return { data: null, error };
+              }
+            }
+          };
         }
-      })
-    }),
-    
-    // RPC (stored procedures)
-    rpc: async (functionName, params) => {
-      try {
-        const keys = Object.keys(params);
-        const placeholders = keys.map((_, i) => `$${i + 1}`).join(',');
-        const result = await query(
-          `SELECT ${functionName}(${placeholders})`,
-          Object.values(params)
-        );
-        return { data: result.rows[0], error: null };
-      } catch (error) {
-        return { data: null, error };
+      }),
+      
+      delete: () => ({
+        eq: (column, value) => {
+          const validColumn = validateColumn(column, validTable);
+          
+          return {
+            execute: async () => {
+              try {
+                await query(`DELETE FROM ${validTable} WHERE ${validColumn} = $1`, [value]);
+                return { data: null, error: null };
+              } catch (error) {
+                return { data: null, error };
+              }
+            }
+          };
+        }
+      }),
+      
+      rpc: async (functionName, params) => {
+        try {
+          const keys = Object.keys(params);
+          const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+          const result = await query(
+            `SELECT ${functionName}(${placeholders})`,
+            Object.values(params)
+          );
+          return { data: result.rows[0], error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
       }
-    }
-  })
+    };
+  }
 };
 
 // Export supabase as an alias for db for backward compatibility

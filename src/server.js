@@ -7,6 +7,10 @@ const morgan = require('morgan');
 const { WebSocketServer } = require('ws');
 require('dotenv').config();
 
+// Validate environment variables before starting
+const { validateEnv } = require('./config/validateEnv');
+validateEnv();
+
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
@@ -198,6 +202,66 @@ server.listen(PORT, async () => {
       autoRegisterWebhooks();
     }, 3000); // Wait 3 seconds for server to be fully ready
   }
+});
+
+// Graceful shutdown
+let isShuttingDown = false;
+
+const gracefulShutdown = async (signal) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  console.log(`\n${signal} received, starting graceful shutdown...`);
+
+  // Stop accepting new connections
+  server.close(() => {
+    console.log('HTTP server closed');
+  });
+
+  // Close WebSocket connections
+  if (io) {
+    io.close(() => {
+      console.log('Socket.IO closed');
+    });
+  }
+
+  if (wss) {
+    wss.clients.forEach(client => {
+      client.close(1000, 'Server shutting down');
+    });
+    wss.close(() => {
+      console.log('WebSocket server closed');
+    });
+  }
+
+  // Close database connections
+  try {
+    const { pool } = require('./config/database');
+    await pool.end();
+    console.log('Database pool closed');
+  } catch (error) {
+    console.error('Error closing database pool:', error);
+  }
+
+  // Give ongoing requests time to complete
+  setTimeout(() => {
+    console.log('Forcing shutdown');
+    process.exit(0);
+  }, 10000); // 10 second timeout
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught errors
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  gracefulShutdown('UNCAUGHT_EXCEPTION');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  gracefulShutdown('UNHANDLED_REJECTION');
 });
 
 module.exports = { app, server, io };

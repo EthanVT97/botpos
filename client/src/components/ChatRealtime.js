@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, Send, X, Users, Phone, Mail, CheckCheck, Check, Wifi, WifiOff } from 'lucide-react';
 import io from 'socket.io-client';
+import { sanitizeHTML } from '../utils/sanitize';
 import './Chat.css';
 
 const ChatRealtime = ({ api }) => {
@@ -389,7 +390,14 @@ const ChatRealtime = ({ api }) => {
                   className={`message ${msg.sender_type === 'admin' ? 'message-sent' : 'message-received'}`}
                 >
                   <div className="message-bubble">
-                    <p>{msg.message}</p>
+                    <p 
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizeHTML(msg.message, {
+                          ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'br'],
+                          ALLOWED_ATTR: []
+                        })
+                      }}
+                    />
                     <div className="message-meta">
                       <span className="message-time">
                         {new Date(msg.created_at).toLocaleTimeString('en-US', { 

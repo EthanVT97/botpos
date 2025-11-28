@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { pool, query, supabase } = require('../config/database');
+const { pool, query, getClient, supabase } = require('../config/database');
 
 // Get all orders
 router.get('/', async (req, res) => {
@@ -41,10 +41,12 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create order with transaction support
+// Create order with transaction support (FIXED: Race condition)
 router.post('/', async (req, res) => {
+  const client = await getClient();
+  
   try {
-    const { customer_id, items, total_amount, discount, tax, payment_method, notes, source } = req.body;
+    const { customer_id, store_id, items, total_amount, discount, tax, payment_method, notes, source } = req.body;
     
     // Validate input
     if (!customer_id || !items || !Array.isArray(items) || items.length === 0) {
@@ -70,51 +72,58 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Check if customer exists
-    const { data: customer, error: customerError } = await supabase
-      .from('customers')
-      .select('id')
-      .eq('id', customer_id)
-      .single();
+    // Start transaction
+    await client.query('BEGIN');
 
-    if (customerError || !customer) {
+    // Check if customer exists
+    const customerResult = await client.query(
+      'SELECT id FROM customers WHERE id = $1',
+      [customer_id]
+    );
+
+    if (customerResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ 
         success: false, 
         error: 'Customer not found' 
       });
     }
 
-    // Check if all products exist and have sufficient stock
+    // Lock products for update and check stock atomically
     const productIds = items.map(item => item.product_id);
-    const { data: products, error: productsError } = await supabase
-      .from('products')
-      .select('id, name, stock_quantity')
-      .in('id', productIds);
-
-    if (productsError) throw productsError;
+    const lockQuery = `
+      SELECT id, name, stock_quantity 
+      FROM products 
+      WHERE id = ANY($1)
+      FOR UPDATE
+    `;
+    const productsResult = await client.query(lockQuery, [productIds]);
+    const products = productsResult.rows;
 
     if (products.length !== productIds.length) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ 
         success: false, 
         error: 'One or more products not found' 
       });
     }
 
-    // Check stock availability
+    // Check stock availability with locked rows
     const stockIssues = [];
     for (const item of items) {
       const product = products.find(p => p.id === item.product_id);
-      if (product && product.stock_quantity < item.quantity) {
+      if (!product || product.stock_quantity < item.quantity) {
         stockIssues.push({
-          product_id: product.id,
-          product_name: product.name,
-          available: product.stock_quantity,
+          product_id: item.product_id,
+          product_name: product?.name || 'Unknown',
+          available: product?.stock_quantity || 0,
           requested: item.quantity
         });
       }
     }
 
     if (stockIssues.length > 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ 
         success: false, 
         error: 'Insufficient stock for one or more products',
@@ -122,85 +131,72 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Create order (PostgreSQL will handle transaction atomicity)
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert([{
-        customer_id,
-        total_amount,
-        discount: discount || 0,
-        tax: tax || 0,
-        payment_method,
-        notes,
-        source: source || 'pos',
-        status: 'pending'
-      }])
-      .select()
-      .single();
+    // Create order
+    const orderResult = await client.query(`
+      INSERT INTO orders (customer_id, store_id, total_amount, discount, tax, payment_method, notes, source, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `, [customer_id, store_id, total_amount, discount || 0, tax || 0, payment_method, notes, source || 'pos', 'pending']);
 
-    if (orderError) throw orderError;
+    const order = orderResult.rows[0];
 
-    // Create order items
-    const orderItems = items.map(item => ({
-      order_id: order.id,
-      product_id: item.product_id,
-      quantity: item.quantity,
-      price: item.price,
-      subtotal: item.quantity * item.price,
-      uom_id: item.uom_id || null
-    }));
-
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems);
-
-    if (itemsError) {
-      // Rollback: delete the order if items insertion fails
-      await supabase.from('orders').delete().eq('id', order.id);
-      throw itemsError;
-    }
-
-    // Update product stock
-    let stockUpdateFailed = false;
+    // Insert order items and update stock atomically
     for (const item of items) {
-      const { error: stockError } = await supabase.rpc('update_product_stock', {
-        product_id: item.product_id,
-        quantity_change: -item.quantity
-      });
+      // Insert order item
+      await client.query(`
+        INSERT INTO order_items (order_id, product_id, quantity, price, subtotal, uom_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [order.id, item.product_id, item.quantity, item.price, item.quantity * item.price, item.uom_id || null]);
       
-      if (stockError) {
-        console.error('Stock update error:', stockError);
-        stockUpdateFailed = true;
-      }
+      // Update stock atomically
+      await client.query(`
+        UPDATE products 
+        SET stock_quantity = stock_quantity - $1,
+            updated_at = NOW()
+        WHERE id = $2
+      `, [item.quantity, item.product_id]);
     }
 
-    // If stock update failed, log warning but don't fail the order
-    if (stockUpdateFailed) {
-      console.warn(`⚠️  Stock update failed for order ${order.id}, manual adjustment may be needed`);
-    }
+    // Commit transaction
+    await client.query('COMMIT');
 
-    // Fetch complete order with items
-    const { data: completeOrder } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        customers(name, phone),
-        order_items(*, products(name, name_mm))
-      `)
-      .eq('id', order.id)
-      .single();
+    // Fetch complete order with items (outside transaction)
+    const completeOrderResult = await query(`
+      SELECT 
+        o.*,
+        json_build_object('name', c.name, 'phone', c.phone) as customer,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'id', oi.id,
+              'quantity', oi.quantity,
+              'price', oi.price,
+              'subtotal', oi.subtotal,
+              'product', json_build_object('name', p.name, 'name_mm', p.name_mm)
+            )
+          )
+          FROM order_items oi
+          JOIN products p ON oi.product_id = p.id
+          WHERE oi.order_id = o.id
+        ) as items
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      WHERE o.id = $1
+    `, [order.id]);
 
     res.json({ 
       success: true, 
-      data: completeOrder || order,
-      warning: stockUpdateFailed ? 'Order created but stock update may have failed' : null
+      data: completeOrderResult.rows[0] || order
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Order creation error:', error);
     res.status(500).json({ 
       success: false, 
       error: process.env.NODE_ENV === 'development' ? error.message : 'Failed to create order'
     });
+  } finally {
+    client.release();
   }
 });
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool, query, supabase } = require('../config/database');
+const { productValidation } = require('../middleware/validator');
 
 // Get all products
 router.get('/', async (req, res) => {
@@ -34,7 +35,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create product
-router.post('/', async (req, res) => {
+router.post('/', productValidation.create, async (req, res) => {
   try {
     let { name, name_mm, description, price, cost, category_id, sku, barcode, stock_quantity, image_url, base_uom_id } = req.body;
     
@@ -119,7 +120,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update product
-router.put('/:id', async (req, res) => {
+router.put('/:id', productValidation.update, async (req, res) => {
   try {
     // Allow updating all fields including base_uom_id
     const updateData = { ...req.body };
