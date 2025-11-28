@@ -185,33 +185,43 @@ const ChatEnhanced = ({ api }) => {
     }
   };
 
-  const sendMessage = async () => {
+  const sendMessage = async (e) => {
+    if (e) e.preventDefault();
     if (!newMessage.trim() && !selectedFile) return;
+    if (loading || uploading) return;
 
     try {
+      setLoading(true);
+      
       if (selectedFile) {
         await sendMessageWithAttachment();
       } else {
-        await api.post('/chat/send', {
+        const response = await api.post('/chat/send', {
           customerId: selectedCustomer.id,
           message: newMessage
         });
+        
+        if (!response.data.success) {
+          throw new Error(response.data.error || 'Failed to send message');
+        }
       }
       
       setNewMessage('');
       setSelectedFile(null);
-      fetchMessages(selectedCustomer.id);
-      fetchSessions();
+      await fetchMessages(selectedCustomer.id);
+      await fetchSessions();
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message');
+      alert(error.response?.data?.error || error.message || 'Failed to send message');
+    } finally {
+      setLoading(false);
     }
   };
 
   const sendMessageWithAttachment = async () => {
+    setUploading(true);
+    
     try {
-      setUploading(true);
-      
       // Upload file
       const formData = new FormData();
       formData.append('file', selectedFile);
@@ -220,10 +230,14 @@ const ChatEnhanced = ({ api }) => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
+      if (!uploadResponse.data.success) {
+        throw new Error(uploadResponse.data.error || 'Failed to upload file');
+      }
+      
       const fileData = uploadResponse.data.data;
       
       // Send message with attachment
-      await api.post('/chat/send-with-attachment', {
+      const response = await api.post('/chat/send-with-attachment', {
         customerId: selectedCustomer.id,
         message: newMessage || 'Sent an attachment',
         attachmentUrl: fileData.url,
@@ -232,9 +246,13 @@ const ChatEnhanced = ({ api }) => {
         attachmentSize: fileData.size
       });
       
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to send message');
+      }
+      
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('Failed to upload file');
+      throw error; // Re-throw to be caught by sendMessage
     } finally {
       setUploading(false);
     }
@@ -676,16 +694,21 @@ const ChatEnhanced = ({ api }) => {
                     setNewMessage(e.target.value);
                     handleTyping();
                   }}
-                  onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                  disabled={uploading}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage(e);
+                    }
+                  }}
+                  disabled={uploading || loading}
                 />
                 <button
                   className="btn-send"
                   onClick={sendMessage}
-                  disabled={(!newMessage.trim() && !selectedFile) || uploading}
-                  title={uploading ? 'Uploading...' : 'Send message'}
+                  disabled={(!newMessage.trim() && !selectedFile) || uploading || loading}
+                  title={uploading ? 'Uploading...' : loading ? 'Sending...' : 'Send message'}
                 >
-                  {uploading ? (
+                  {uploading || loading ? (
                     <div className="loading-spinner"></div>
                   ) : (
                     <Send size={20} />

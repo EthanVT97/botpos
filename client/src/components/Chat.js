@@ -86,7 +86,7 @@ const Chat = ({ api }) => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedCustomer) return;
+    if (!newMessage.trim() || !selectedCustomer || loading) return;
 
     setLoading(true);
     try {
@@ -98,11 +98,13 @@ const Chat = ({ api }) => {
       if (response.data.success) {
         setNewMessage('');
         await loadMessages(selectedCustomer.id);
-        loadChatSessions();
+        await loadChatSessions();
+      } else {
+        throw new Error(response.data.error || 'Failed to send message');
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message');
+      alert(error.response?.data?.error || error.message || 'Failed to send message');
     } finally {
       setLoading(false);
     }
