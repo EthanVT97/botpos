@@ -621,7 +621,19 @@ Your Myanmar POS System is now:
 
 ---
 
-**Version:** 1.3.2-secure  
+**Version:** 1.3.3-stable  
 **Last Updated:** November 28, 2025  
 **Status:** ✅ Production Ready  
 **Security:** 🔒 Enterprise Grade
+
+---
+
+## 🔧 Latest Fix (v1.3.3)
+
+**Issue:** Products API returning 500 errors  
+**Cause:** Custom query builder doesn't support JOIN syntax like `categories(name)`  
+**Fix:** Replaced all Supabase-style joins with native SQL JOINs  
+
+**Files Fixed:**
+- `src/routes/products.js` - All endpoints now use native SQL
+- `src/routes/sellingPrice.js` - Export endpoint

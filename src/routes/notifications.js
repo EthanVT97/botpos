@@ -81,18 +81,28 @@ router.post('/order-confirmation', async (req, res) => {
     const { orderId } = req.body;
 
     // Get order with customer
-    const { data: order, error } = await supabase
-      .from('orders')
-      .select('*, customers(*)')
-      .eq('id', orderId)
-      .single();
+    const result = await query(`
+      SELECT 
+        o.*,
+        json_build_object(
+          'id', c.id,
+          'name', c.name,
+          'email', c.email,
+          'phone', c.phone
+        ) as customers
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      WHERE o.id = $1
+    `, [orderId]);
 
-    if (error || !order) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Order not found'
       });
     }
+
+    const order = result.rows[0];
 
     const results = await notificationService.sendOrderConfirmation(
       order,
@@ -122,18 +132,28 @@ router.post('/order-status', async (req, res) => {
     const { orderId, status } = req.body;
 
     // Get order with customer
-    const { data: order, error } = await supabase
-      .from('orders')
-      .select('*, customers(*)')
-      .eq('id', orderId)
-      .single();
+    const result = await query(`
+      SELECT 
+        o.*,
+        json_build_object(
+          'id', c.id,
+          'name', c.name,
+          'email', c.email,
+          'phone', c.phone
+        ) as customers
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      WHERE o.id = $1
+    `, [orderId]);
 
-    if (error || !order) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Order not found'
       });
     }
+
+    const order = result.rows[0];
 
     const results = await notificationService.sendOrderStatusUpdate(
       order,

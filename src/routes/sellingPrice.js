@@ -230,12 +230,16 @@ router.get('/export', async (req, res) => {
   try {
     const { format = 'excel' } = req.query;
 
-    const { data: products, error } = await supabase
-      .from('products')
-      .select('id, name, name_mm, price, cost, stock_quantity, categories(name)')
-      .order('name', { ascending: true });
-
-    if (error) throw error;
+    const result = await query(`
+      SELECT 
+        p.id, p.name, p.name_mm, p.price, p.cost, p.stock_quantity,
+        json_build_object('name', c.name) as categories
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      ORDER BY p.name ASC
+    `);
+    
+    const products = result.rows;
 
     // Prepare data for export
     const exportData = products.map(p => ({
@@ -398,11 +402,17 @@ router.post('/import', upload.single('file'), async (req, res) => {
 // Get import template
 router.get('/import-template', async (req, res) => {
   try {
-    const { data: products, error } = await supabase
-      .from('products')
-      .select('id, name, name_mm, price, cost, categories(name)')
-      .order('name', { ascending: true })
-      .limit(100);
+    const result = await query(`
+      SELECT 
+        p.id, p.name, p.name_mm, p.price, p.cost,
+        json_build_object('name', c.name) as categories
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      ORDER BY p.name ASC
+      LIMIT 100
+    `);
+    
+    const products = result.rows;
 
     if (error) throw error;
 

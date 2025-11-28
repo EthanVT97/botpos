@@ -6,14 +6,18 @@ const { productValidation } = require('../middleware/validator');
 // Get all products
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, categories(name)')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    res.json({ success: true, data });
+    const result = await query(`
+      SELECT 
+        p.*,
+        json_build_object('name', c.name, 'name_mm', c.name_mm) as categories
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      ORDER BY p.created_at DESC
+    `);
+    
+    res.json({ success: true, data: result.rows });
   } catch (error) {
+    console.error('Error fetching products:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -21,15 +25,22 @@ router.get('/', async (req, res) => {
 // Get product by ID
 router.get('/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, categories(name)')
-      .eq('id', req.params.id)
-      .single();
+    const result = await query(`
+      SELECT 
+        p.*,
+        json_build_object('name', c.name, 'name_mm', c.name_mm) as categories
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE p.id = $1
+    `, [req.params.id]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Product not found' });
+    }
+    
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    console.error('Error fetching product:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -60,13 +71,8 @@ router.post('/', productValidation.create, async (req, res) => {
 
     // Validate category exists if provided
     if (category_id) {
-      const { data: category } = await supabase
-        .from('categories')
-        .select('id')
-        .eq('id', category_id)
-        .single();
-      
-      if (!category) {
+      const categoryResult = await query('SELECT id FROM categories WHERE id = $1', [category_id]);
+      if (categoryResult.rows.length === 0) {
         return res.status(404).json({ 
           success: false, 
           error: 'Category not found' 
@@ -76,13 +82,8 @@ router.post('/', productValidation.create, async (req, res) => {
 
     // Check for duplicate SKU if provided
     if (sku) {
-      const { data: existingProduct } = await supabase
-        .from('products')
-        .select('id')
-        .eq('sku', sku)
-        .single();
-      
-      if (existingProduct) {
+      const skuResult = await query('SELECT id FROM products WHERE sku = $1', [sku]);
+      if (skuResult.rows.length > 0) {
         return res.status(409).json({ 
           success: false, 
           error: 'Product with this SKU already exists' 
@@ -90,26 +91,27 @@ router.post('/', productValidation.create, async (req, res) => {
       }
     }
     
-    const { data, error } = await supabase
-      .from('products')
-      .insert([{
-        name: name.trim(),
-        name_mm: name_mm?.trim(),
-        description,
-        price: parseFloat(price),
-        cost: cost ? parseFloat(cost) : null,
-        category_id: category_id || null,
-        sku: sku?.trim() || null,
-        barcode: barcode?.trim() || null,
-        stock_quantity: stock_quantity || 0,
-        image_url: image_url || null,
-        base_uom_id: base_uom_id || null
-      }])
-      .select()
-      .single();
+    const result = await query(`
+      INSERT INTO products (
+        name, name_mm, description, price, cost, category_id, 
+        sku, barcode, stock_quantity, image_url, base_uom_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *
+    `, [
+      name.trim(),
+      name_mm?.trim() || null,
+      description || null,
+      parseFloat(price),
+      cost ? parseFloat(cost) : null,
+      category_id || null,
+      sku?.trim() || null,
+      barcode?.trim() || null,
+      stock_quantity || 0,
+      image_url || null,
+      base_uom_id || null
+    ]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Error creating product:', error);
     res.status(500).json({ 
@@ -122,27 +124,32 @@ router.post('/', productValidation.create, async (req, res) => {
 // Update product
 router.put('/:id', productValidation.update, async (req, res) => {
   try {
-    // Allow updating all fields including base_uom_id
     const updateData = { ...req.body };
     
     // Convert empty strings to null for UUID fields
     if (updateData.category_id === '') updateData.category_id = null;
     if (updateData.base_uom_id === '') updateData.base_uom_id = null;
-    
-    // Clean up other fields
     if (updateData.sku === '') updateData.sku = null;
     if (updateData.barcode === '') updateData.barcode = null;
     if (updateData.image_url === '') updateData.image_url = null;
     
-    const { data, error } = await supabase
-      .from('products')
-      .update(updateData)
-      .eq('id', req.params.id)
-      .select()
-      .single();
+    // Build dynamic update query
+    const fields = Object.keys(updateData);
+    const values = Object.values(updateData);
+    const setClause = fields.map((field, index) => `${field} = $${index + 1}`).join(', ');
+    
+    const result = await query(`
+      UPDATE products 
+      SET ${setClause}, updated_at = NOW()
+      WHERE id = $${fields.length + 1}
+      RETURNING *
+    `, [...values, req.params.id]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Product not found' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Error updating product:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -152,14 +159,15 @@ router.put('/:id', productValidation.update, async (req, res) => {
 // Delete product
 router.delete('/:id', async (req, res) => {
   try {
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', req.params.id);
-
-    if (error) throw error;
+    const result = await query('DELETE FROM products WHERE id = $1 RETURNING id', [req.params.id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Product not found' });
+    }
+    
     res.json({ success: true, message: 'Product deleted successfully' });
   } catch (error) {
+    console.error('Error deleting product:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -167,14 +175,24 @@ router.delete('/:id', async (req, res) => {
 // Search products
 router.get('/search/:query', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, categories(name)')
-      .or(`name.ilike.%${req.params.query}%,name_mm.ilike.%${req.params.query}%,sku.ilike.%${req.params.query}%,barcode.eq.${req.params.query}`);
+    const searchQuery = req.params.query;
+    const result = await query(`
+      SELECT 
+        p.*,
+        json_build_object('name', c.name, 'name_mm', c.name_mm) as categories
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE 
+        p.name ILIKE $1 OR 
+        p.name_mm ILIKE $1 OR 
+        p.sku ILIKE $1 OR 
+        p.barcode = $2
+      ORDER BY p.created_at DESC
+    `, [`%${searchQuery}%`, searchQuery]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
+    console.error('Error searching products:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
