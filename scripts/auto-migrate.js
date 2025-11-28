@@ -125,6 +125,13 @@ async function runMigration() {
   console.log('🚀 Starting Auto-Migration for Render Deployment');
   console.log('================================================\n');
 
+  // Skip migration if DATABASE_URL is not set (during Docker build)
+  if (!process.env.DATABASE_URL) {
+    console.log('⏭️  Skipping migration: DATABASE_URL not set');
+    console.log('   (This is normal during Docker build)\n');
+    process.exit(0);
+  }
+
   try {
     // Test database connection
     console.log('📡 Testing database connection...');

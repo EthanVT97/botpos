@@ -5,6 +5,10 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
+# Copy scripts and database folders (needed for postinstall)
+COPY scripts ./scripts
+COPY database ./database
+
 # Install dependencies
 RUN npm install --omit=dev
 
