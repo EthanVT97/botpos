@@ -24,6 +24,7 @@ const SQL_FILES = [
   'schema.sql',              // Core tables
   'auth_schema.sql',         // Authentication & roles
   'chat_schema.sql',         // Chat messages & sessions
+  'chat_typing_migration.sql', // Chat typing & attachments
   'uom_schema.sql',          // Unit of measure
   'multi_store_schema.sql',  // Multi-store support
   'price_history_schema.sql',// Price tracking

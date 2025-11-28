@@ -13,7 +13,8 @@ A comprehensive Point of Sale system built for Myanmar businesses with multi-sto
 **Production:** ✅ LIVE & OPERATIONAL  
 **Last Updated:** November 28, 2025  
 **Version:** 1.4.0 - Chat Enhancements  
-**Build Status:** ✅ Fixed - Ready to Deploy
+**Build Status:** ✅ Fixed - Ready to Deploy  
+**Auto-Migration:** ✅ Enabled - Tables created automatically on deployment
 
 ### 🎉 NEW: Chat Enhancements Available!
 

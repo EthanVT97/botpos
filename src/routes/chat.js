@@ -400,25 +400,39 @@ router.post('/sessions/:customerId/close', async (req, res) => {
 // NEW FEATURES
 // ============================================
 
-// Typing indicator
+// Typing indicator (backward compatible)
 router.post('/typing/:customerId', async (req, res) => {
   try {
     const { customerId } = req.params;
     const { isTyping } = req.body;
 
-    await query(`
-      UPDATE chat_sessions
-      SET is_typing = $1, typing_at = NOW(), updated_at = NOW()
-      WHERE customer_id = $2
-    `, [isTyping, customerId]);
+    // Check if typing columns exist
+    const hasTypingColumn = await checkTableExists('chat_sessions') && await query(`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'chat_sessions' AND column_name = 'is_typing'
+      )
+    `).then(r => r.rows[0].exists).catch(() => false);
 
-    // Emit typing indicator via Socket.IO
-    emitTypingIndicator(customerId, isTyping);
+    if (hasTypingColumn) {
+      await query(`
+        UPDATE chat_sessions
+        SET is_typing = $1, typing_at = NOW(), updated_at = NOW()
+        WHERE customer_id = $2
+      `, [isTyping, customerId]);
+
+      // Emit typing indicator via Socket.IO
+      emitTypingIndicator(customerId, isTyping);
+    } else {
+      // Just emit via Socket.IO without database update
+      emitTypingIndicator(customerId, isTyping);
+    }
 
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating typing indicator:', error);
-    res.status(500).json({ success: false, error: error.message });
+    // Don't fail the request, just log the error
+    res.json({ success: true });
   }
 });
 
