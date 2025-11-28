@@ -5,7 +5,7 @@ services:
     env: node
     region: singapore
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install && node scripts/auto-migrate.js
     startCommand: npm start
     envVars:
       - key: NODE_ENV

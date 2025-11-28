@@ -110,6 +110,22 @@ Expected response:
 - PostgreSQL >= 12.0
 - npm or yarn
 
+### 🎯 Auto-Migration Feature
+
+**All database tables are created automatically!**
+
+- ✅ Runs on `npm install` (via postinstall hook)
+- ✅ Runs on Render deployment (via build command)
+- ✅ Can be run manually: `npm run migrate`
+- ✅ Safe to run multiple times (uses IF NOT EXISTS)
+- ✅ Creates all necessary tables and extensions
+
+**Tables created automatically:**
+- Core: users, roles, products, categories, customers, orders
+- Chat: chat_messages, chat_sessions, message_templates, conversation_tags
+- Multi-store: stores, store_inventory, store_transfers
+- Features: uom, bot_flows, price_history, analytics
+
 ### Installation
 
 1. Clone the repository
@@ -138,7 +154,10 @@ cp .env.example .env
 
 4. Set up database
 ```bash
-# Run all schema files
+# Automatic migration (recommended)
+npm run migrate
+
+# Or run all schema files manually
 psql $DATABASE_URL -f database/schema.sql
 psql $DATABASE_URL -f database/auth_schema.sql
 psql $DATABASE_URL -f database/chat_schema.sql
@@ -147,8 +166,11 @@ psql $DATABASE_URL -f database/multi_store_schema.sql
 psql $DATABASE_URL -f database/bot_flow_schema.sql
 psql $DATABASE_URL -f database/analytics_schema.sql
 psql $DATABASE_URL -f database/price_history_schema.sql
+psql $DATABASE_URL -f database/chat_enhancements.sql
 psql $DATABASE_URL -f database/add_constraints.sql
 ```
+
+**Note:** On Render, database tables are created automatically during deployment.
 
 5. Create admin user
 ```bash
@@ -811,7 +833,7 @@ Before deploying to production, ensure:
 1. Create a new Web Service on Render
 2. Connect your GitHub repository
 3. Configure build settings:
-   - **Build Command:** `npm install`
+   - **Build Command:** `npm install && node scripts/auto-migrate.js`
    - **Start Command:** `npm start`
    - **Environment:** Node
 
@@ -825,16 +847,15 @@ Before deploying to production, ensure:
    ```
 
 5. Create a PostgreSQL database on Render
-6. Run database migrations via Render Shell:
-   ```bash
-   psql $DATABASE_URL -f database/schema.sql
-   # ... run all other schema files
-   ```
 
-7. Create admin user:
+6. Deploy - **Database tables are created automatically!**
+
+7. Create admin user via Render Shell:
    ```bash
    node scripts/create-admin.js
    ```
+
+**Note:** The auto-migration script runs during build and creates all necessary tables automatically.
 
 #### Frontend Deployment (Netlify/Vercel)
 
