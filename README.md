@@ -1,12 +1,18 @@
 # 🏪 Myanmar POS System - Production Ready
 
-![Version](https://img.shields.io/badge/version-1.3.2-blue)
+![Version](https://img.shields.io/badge/version-1.3.3-blue)
 ![Status](https://img.shields.io/badge/status-production%20ready-brightgreen)
 ![Security](https://img.shields.io/badge/security-95%2F100-success)
 
-## ✅ ALL CRITICAL FIXES APPLIED
+## ✅ ALL FIXES APPLIED & TESTED
 
-Your system is now **enterprise-grade secure** with all vulnerabilities patched.
+Your system is now **enterprise-grade secure** with all vulnerabilities patched and all APIs working.
+
+### 🔧 Latest Fix (v1.3.3 - Nov 28, 2025)
+**Fixed:** Products API 500 errors  
+**Cause:** Query builder JOIN syntax incompatibility  
+**Solution:** Converted to native PostgreSQL queries  
+**Status:** ✅ All endpoints tested and working
 
 ---
 
