@@ -137,11 +137,22 @@ function emitSessionUpdate(session) {
   io.to('admin').emit('chat:session-update', session);
 }
 
+/**
+ * Emit typing indicator
+ */
+function emitTypingIndicator(customerId, isTyping) {
+  if (!io) return;
+
+  io.to('admin').emit('chat:typing', { customerId, isTyping });
+  io.to(`customer:${customerId}`).emit('chat:typing', { customerId, isTyping });
+}
+
 module.exports = {
   initializeSocket,
   emitNewMessage,
   emitMessageRead,
   emitUnreadCountUpdate,
   emitSessionUpdate,
+  emitTypingIndicator,
   getIO: () => io
 };
