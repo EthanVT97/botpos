@@ -5,18 +5,36 @@ const { pool, query, getClient, supabase } = require('../config/database');
 // Get all orders
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        customers(name, phone),
-        order_items(*, products(name, name_mm, price))
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    res.json({ success: true, data });
+    const result = await query(`
+      SELECT 
+        o.*,
+        json_build_object('name', c.name, 'phone', c.phone) as customers,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'id', oi.id,
+              'quantity', oi.quantity,
+              'price', oi.price,
+              'subtotal', oi.subtotal,
+              'products', json_build_object(
+                'name', p.name,
+                'name_mm', p.name_mm,
+                'price', p.price
+              )
+            )
+          )
+          FROM order_items oi
+          LEFT JOIN products p ON oi.product_id = p.id
+          WHERE oi.order_id = o.id
+        ) as order_items
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      ORDER BY o.created_at DESC
+    `);
+    
+    res.json({ success: true, data: result.rows });
   } catch (error) {
+    console.error('Error fetching orders:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -24,19 +42,45 @@ router.get('/', async (req, res) => {
 // Get order by ID
 router.get('/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        customers(name, phone, address),
-        order_items(*, products(name, name_mm, price, image_url))
-      `)
-      .eq('id', req.params.id)
-      .single();
+    const result = await query(`
+      SELECT 
+        o.*,
+        json_build_object(
+          'name', c.name, 
+          'phone', c.phone, 
+          'address', c.address
+        ) as customers,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'id', oi.id,
+              'quantity', oi.quantity,
+              'price', oi.price,
+              'subtotal', oi.subtotal,
+              'products', json_build_object(
+                'name', p.name,
+                'name_mm', p.name_mm,
+                'price', p.price,
+                'image_url', p.image_url
+              )
+            )
+          )
+          FROM order_items oi
+          LEFT JOIN products p ON oi.product_id = p.id
+          WHERE oi.order_id = o.id
+        ) as order_items
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      WHERE o.id = $1
+    `, [req.params.id]);
 
-    if (error) throw error;
-    res.json({ success: true, data });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    console.error('Error fetching order:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
